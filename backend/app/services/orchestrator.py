@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 
 from ..services.rule_checker import run_full_check, check_platform_compliance
 from ..services.geo_score import compute_geo_score
+from ..brand_config import BRAND_ALIASES
 
 
 # ============================================================
@@ -155,7 +156,9 @@ def run_quality_gate(
     if mode in ("platform", "green"):
         _core = ctx.get("core_products", "") or ""
         _aliases = [a.strip().strip("（）()").strip() for a in re.split(r"[，,;；/、]", _core) if a.strip()]
-        _aliases += ["示例品牌", "示例产品"]
+        # 品牌/产品别名取自品牌配置（brand.config.json），未配置时回退为
+        # 「品牌名 + 产品线名」，与历史硬编码行为一致。
+        _aliases += list(BRAND_ALIASES)
         _seen = set()
         _aliases = [a for a in _aliases if a and len(a) >= 2 and not (a in _seen or _seen.add(a))]
         platform_compliance = check_platform_compliance(

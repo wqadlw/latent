@@ -6,6 +6,7 @@ from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Date, Boolean, ForeignKey, Index
 )
 from .database import Base, now
+from .brand_config import OFFICIAL_SITE_URL
 
 
 # ============================================================
@@ -648,11 +649,11 @@ PLATFORM_PRESETS = [
         "word_count_min": 800, "word_count_max": 1500,
         "compliance_level": 1,
         "config": '{"features":["自有阵地","品牌完整表达","GEO友好"],"ai_weight":"高","marketing":"强品牌,完整表达"}',
-        "characteristics": "品牌自有官网（基于 Astro 构建，https://www.example.com），栏目：案例·新闻 > 客户案例 / 产品应用 / 行业资讯。自有阵地可完整表达品牌、无营销限制，且对 AI 抓取与 GEO 极友好。",
+        "characteristics": f"品牌自有官网（基于 Astro 构建，{OFFICIAL_SITE_URL}），栏目：案例·新闻 > 客户案例 / 产品应用 / 行业资讯。自有阵地可完整表达品牌、无营销限制，且对 AI 抓取与 GEO 极友好。",
         "rules": "自有阵地，品牌可完整表达；产出形态为 MDX 代码，按固定模板（Frontmatter + 六段结构 + 4 列数据对比表 + 引用块）生成，严禁 <Image /> 组件与 emoji，严肃工业风。",
         "publish_mode": "geo",
         "output_format": "mdx",
-        "site_url": "https://www.example.com",
+        "site_url": OFFICIAL_SITE_URL,
     },
 ]
 

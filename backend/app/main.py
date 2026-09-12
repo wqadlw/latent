@@ -263,7 +263,7 @@ def init_db():
                     conn.execute(text(f"ALTER TABLE platform ADD COLUMN {_cname} {_ctype}"))
                     conn.commit()
         from .models import Platform as _Platform, PLATFORM_PRESETS as _PRESETS
-        from .services.prompt_engine import OFFICIAL_MDX_PROMPT
+        from .services.prompt_engine import OFFICIAL_MDX_PROMPT, OFFICIAL_SITE_URL
         _official_preset = next((p for p in _PRESETS if p["name"] == "官网/自建站"), None)
         _content_names = {p["name"] for p in _PRESETS if p["name"] != "官网/自建站"}
         with SessionLocal() as s:
@@ -305,7 +305,7 @@ def init_db():
                     if not r.output_format or r.output_format == "":
                         r.output_format = "mdx"
                     if not r.site_url:
-                        r.site_url = (_official_preset or {}).get("site_url", "https://www.example.com")
+                        r.site_url = (_official_preset or {}).get("site_url", OFFICIAL_SITE_URL)
             s.commit()
             print("[迁移] 已补齐 platform.output_format/site_url/publish_prompt 并确保官网/自建站平台存在")
     except Exception as e:

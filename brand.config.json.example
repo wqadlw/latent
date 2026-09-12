@@ -1,0 +1,13 @@
+{
+  "_说明": "品牌配置示例。复制为 brand.config.json 放在项目根目录即可生效（该文件已被 .gitignore 排除，不会进仓库）。所有字段均可省略，省略则使用内置示例默认值。也可用同名环境变量覆盖，环境变量优先级更高。",
+
+  "brand_name": "示例品牌",
+  "brand_full_name": "示例品牌科技有限公司",
+  "brand_product": "示例产品",
+  "official_site_url": "https://www.example.com",
+  "region": "华东",
+  "region_city": "上海",
+
+  "_brand_aliases_说明": "品牌/产品别名，用于软文特征检测。留空则自动取 brand_name + brand_product。",
+  "brand_aliases": []
+}

@@ -28,6 +28,8 @@ BUILTIN_VARIABLES = [
     {"key": "persona_contact_rule", "desc": "人设联系方式规则", "group": "账号与人设", "example": "文末引导私信，不直接留微信"},
     # 品牌信息
     {"key": "brand_name", "desc": "品牌名称", "group": "品牌信息", "example": "XX护肤"},
+    {"key": "brand_region", "desc": "品牌所在区域/省份（取自品牌配置）", "group": "品牌信息", "example": "华东"},
+    {"key": "brand_region_city", "desc": "品牌所在城市（取自品牌配置）", "group": "品牌信息", "example": "上海"},
     {"key": "brand_info", "desc": "品牌完整信息（汇总）", "group": "品牌信息", "example": "品牌名+官网+联系方式+卖点"},
     {"key": "brand_selling_points", "desc": "品牌核心卖点", "group": "品牌信息", "example": "天然成分、温和不刺激"},
     {"key": "brand_official_url", "desc": "品牌官网", "group": "品牌信息", "example": "https://example.com"},
@@ -100,6 +102,7 @@ SUPPORTED_RENDER_VARIABLES = {
     "keywords", "keyword_list",
     "knowledge_content", "knowledge_items", "knowledge_summary", "knowledge_titles", "knowledge_count",
     "brand_name", "official_website", "contact_phone", "contact_wechat", "contact_email",
+    "brand_region", "brand_region_city",
     "brand_slogan", "core_products", "target_keywords", "selling_points", "brand_story", "brand_info",
     "brand_selling_points", "brand_official_url", "brand_official_website",
     "anti_ai_rules", "compliance_rules", "ai_seo_rules", "creation_rules",

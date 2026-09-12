@@ -41,6 +41,12 @@ vite.config.js.timestamp-*.mjs
 # 含真实业务数据、LLM API Key、平台登录凭据、用户密码，务必不要提交
 backend/data/
 
+# ---------- 品牌定制配置 ----------
+# 客户部署时填写的真实品牌信息（品牌名/官网/地域），属私有配置，不对外发布。
+# 仓库只保留模板 brand.config.json.example，使用者复制后自行填写。
+brand.config.json
+backend/brand.config.json
+
 # ---------- 日志 ----------
 *.log
 *.err

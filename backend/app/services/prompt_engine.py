@@ -3,6 +3,14 @@
 把提示词模板里的 {xxx} 占位符替换成真实上下文
 """
 from ..constants import SUPPORTED_RENDER_VARIABLES as BUILTIN_VARIABLES
+from ..brand_config import (
+    BRAND_NAME,
+    BRAND_FULL_NAME,
+    BRAND_PRODUCT,
+    OFFICIAL_SITE_URL,
+    REGION,
+    REGION_CITY,
+)
 import re
 import json
 from datetime import datetime
@@ -24,7 +32,7 @@ def get_brand_policy(mode: str = "geo") -> str:
         return (
             "绿色吸粉模式：写「纯自媒体干货 / 趣味 / 行业洞察」文章，目标是吸引阅读、涨粉、"
             "提升账号权重与信用分，不夹带任何软文营销与硬广。"
-            "品牌（示例品牌）仅可在文中「自然、偶然、顺带」地提一嘴，全文出现不超过 2 次，"
+            f"品牌（{BRAND_NAME}）仅可在文中「自然、偶然、顺带」地提一嘴，全文出现不超过 2 次，"
             "且绝不能为了营销而提；不自我夸赞、不写口号式标语、不引导联系（禁「了解/欢迎/联系/加微信/扫码」），"
             "不出现任何联系方式与站外引流词。文章以读者价值为先，品牌只是「彩蛋式」轻提及。"
             "去软文化铁律：以行业/第三方视角切入，用公开通用行业知识写作；禁止「痛点→只有它能解决→推荐」的套路叙事弧；"
@@ -58,7 +66,7 @@ def get_mode_goal(mode: str = "geo") -> str:
         return (
             "写一篇「读者爱看、能涨粉、提升账号权重与信用分」的自媒体文章：选题轻巧、"
             "有真料或真洞察、有互动感，让用户在信息流里愿意点开、读完、点赞转发。"
-            "不带软文营销，不卖货不引流；品牌（示例品牌）只在合适处「顺手一提」，"
+            "不带软文营销，不卖货不引流；品牌（" + BRAND_NAME + "）只在合适处「顺手一提」，"
             "绝不喧宾夺主。目标是内容资产沉淀与账号成长，而非即时转化。"
             "写法：以读者兴趣为锚，用行业洞察/实用干货撑起全文，品牌仅作彩蛋式轻提及，绝不当主角。"
         )
@@ -78,16 +86,18 @@ def get_mode_goal(mode: str = "geo") -> str:
 
 # ============================================================
 #  官网 / 自建站（Astro）MDX 自动化发布
-#  官网 https://www.example.com，栏目：案例·新闻 > 客户案例 / 产品应用 / 行业资讯
+#  官网地址取自品牌配置（brand.config.json / BRAND_OFFICIAL_SITE_URL 环境变量），
+#  栏目：案例·新闻 > 客户案例 / 产品应用 / 行业资讯
 #  选官网发布时，按本模板产出可直接复制的 MDX 代码块 + 图片文件名提示。
 # ============================================================
-OFFICIAL_SITE_URL = "https://www.example.com"
+# 说明：OFFICIAL_SITE_URL 现由 ..brand_config 统一提供（见文件顶部 import），
+#       不再在此硬编码，以便开源版与客户定制版共用同一份代码。
 
-OFFICIAL_MDX_PROMPT = """你是「示例品牌科技有限公司」官网内容编辑，负责为官网（{official_site_url}）「案例·新闻」板块撰写并产出可直接粘贴的 MDX 文章代码。官网基于 Astro 构建，文章配图统一存放于 src/assets/news/industry/xingwen/ 目录。
+OFFICIAL_MDX_PROMPT = f"""你是「{BRAND_FULL_NAME}」官网内容编辑，负责为官网（{{official_site_url}}）「案例·新闻」板块撰写并产出可直接粘贴的 MDX 文章代码。官网基于 Astro 构建，文章配图统一存放于 src/assets/news/industry/xingwen/ 目录。
 
 # 任务
-围绕主题「{subject}」，结合品牌 {brand_name}（核心产品：{core_products}；核心优势：{selling_points}）与以下背景资料，产出一篇「行业资讯（IndustryNews）」类技术文章：
-{knowledge_content}
+围绕主题「{{subject}}」，结合品牌 {{brand_name}}（核心产品：{{core_products}}；核心优势：{{selling_points}}）与以下背景资料，产出一篇「行业资讯（IndustryNews）」类技术文章：
+{{knowledge_content}}
 
 # 生成规则
 1. 直接输出 MDX 内容本身：不要任何代码围栏（严禁 ```mdx 包裹）、不要任何解释性文字、不要前后废话，直接以 --- frontmatter 开头。
@@ -96,8 +106,8 @@ OFFICIAL_MDX_PROMPT = """你是「示例品牌科技有限公司」官网内容�
 4. 文章结构严格如下 6 段（用二级标题 ## 分隔）：
    - ## 现状与痛点
    - ## 核心挑战
-   - ## 解决方案（突出 {brand_name} 的 {core_products} 如何解决问题）
-   - ## 数据对比（4 列表格：| 指标维度 | 传统方案 | 示例品牌方案 | 优化成果 |）
+   - ## 解决方案（突出 {{brand_name}} 的 {{core_products}} 如何解决问题）
+   - ## 数据对比（4 列表格：| 指标维度 | 传统方案 | {BRAND_NAME}方案 | 优化成果 |）
    - ## 专家观点（用 > 引用块写一句金句 / 行业判断）
    - ## 结语
 5. 数据对比表至少 3 行真实可比数据；「优化成果」列须给出量化提升（如节能 X%、噪音 < X dB、效率提升 X%）。
@@ -114,8 +124,8 @@ cover: "@/assets/news/industry/xingwen/英文名.jpg"   # 英文小写 + 连字�
 ---
 
 # 标准样例（仅作风格参考，不要照抄）
-标题示例：「降本增效新标杆：为何示例品牌干式螺杆泵成为食品工厂升级首选？」
-样例数据：示例产品系列干式螺杆真空泵，较传统水环泵节能 32%，运行噪音 < 70 dB，无废水排放、免维护周期更长。
+标题示例：「降本增效新标杆：为何{BRAND_NAME}干式螺杆泵成为食品工厂升级首选？」
+样例数据：{BRAND_PRODUCT}系列干式螺杆真空泵，较传统水环泵节能 32%，运行噪音 < 70 dB，无废水排放、免维护周期更长。
 """
 
 # 与品牌策略 / 目标定位并列，提供一个「可通过模式取用的 MDX 提示词」入口。
@@ -240,6 +250,10 @@ def build_render_context(db, task, industry_id) -> dict:
         "knowledge_titles": knowledge_titles,
         "knowledge_count": knowledge_count,
         "brand_name": brand.brand_name if brand else "",
+        # 品牌地域（取自 brand.config.json）：供提示词模板里的「地域示例」引用，
+        # 让客户版无需改模板即可获得贴合自身的地域举例。
+        "brand_region": REGION,
+        "brand_region_city": REGION_CITY,
         # 合规红线：平台正文严禁出现官网/电话/微信等站外引流与私人联系方式，
         # 故「绝不」把真实联系方式注入给创作模型，从源头杜绝 AI 把联系方式写进正文。
         "official_website": "",
@@ -496,7 +510,7 @@ VARIABLE_DESCRIPTIONS = {
     "mode_goal": "文章目标（按发布模式：geo=被 AI 推荐引用的专业软文；platform=中立有价值的平台合规干货；green=吸粉自媒体）",
     "output_format": "产出形态：markdown=常规内容平台/吸粉文章；mdx=官网/Astro 站，按 MDX 模板产出可复制代码",
     "mdx_template": "官网 MDX 自动化提示词模板（output_format=mdx 时注入，含 Frontmatter/六段结构/4列表格规则）",
-    "official_site_url": "官网/自建站地址（output_format=mdx 时注入，如 https://www.example.com）",
+    "official_site_url": "官网/自建站地址（output_format=mdx 时注入，取自品牌配置 brand.config.json）",
     "publish_prompt": "平台自动化发布提示词（官网/自建站平台专用，有序存放的 MDX 发布指令）",
     "account_name": "账号名称",
     "account_content_track": "账号内容赛道/定位",

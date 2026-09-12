@@ -16,6 +16,7 @@
 - [技术栈](#技术栈)
 - [快速开始](#快速开始)
 - [配置 LLM](#配置-llm)
+- [品牌配置](#品牌配置)
 - [使用流程](#使用流程)
 - [三种发布模式](#三种发布模式)
 - [提示词变量体系](#提示词变量体系)
@@ -141,6 +142,50 @@ npm run dev                  # http://localhost:5173
 
 ---
 
+## 品牌配置
+
+系统把品牌信息（品牌名、官网、地域）从源码中抽离为**统一配置**，因此**开源版与客户定制版共用同一份代码** —— 客户切换品牌时无需改动任何源码。
+
+配置优先级（高 → 低）：
+
+1. **环境变量** — `BRAND_NAME` / `BRAND_FULL_NAME` / `BRAND_PRODUCT` / `BRAND_OFFICIAL_SITE_URL` / `BRAND_REGION` / `BRAND_REGION_CITY` / `BRAND_ALIASES`
+2. **配置文件** `brand.config.json` — 放在项目根目录或 `backend/` 目录均可
+3. **内置默认值** — 不配置时使用通用示例值
+
+最快的方式是复制模板再改：
+
+```bash
+cp brand.config.json.example brand.config.json
+```
+
+```json
+{
+  "brand_name": "你的品牌",
+  "brand_full_name": "你的品牌科技有限公司",
+  "brand_product": "核心产品线",
+  "official_site_url": "https://www.your-site.com",
+  "region": "华东",
+  "region_city": "上海",
+  "brand_aliases": ["品牌简称", "产品简称"]
+}
+```
+
+| 字段 | 说明 | 默认值 |
+| --- | --- | --- |
+| `brand_name` | 品牌名（用于提示词与软文特征检测） | `示例品牌` |
+| `brand_full_name` | 品牌全称（用于官网 MDX 编辑角色设定） | `示例品牌科技有限公司` |
+| `brand_product` | 核心产品线名 | `示例产品` |
+| `official_site_url` | 官网 / 自建站地址（MDX 模式注入） | `https://www.example.com` |
+| `region` | 所在区域 / 省份（用于提示词地域示例） | `华东` |
+| `region_city` | 所在城市 | `上海` |
+| `brand_aliases` | 品牌 / 产品别名（软文特征检测用），留空则自动取前两项 | 自动推导 |
+
+> `brand.config.json` 已在 `.gitignore` 中排除，**不会进仓库**；请勿把真实品牌信息硬编码回源码。
+>
+> 配置在进程启动时读取一次，修改后需**重启后端服务**才生效。
+
+---
+
 ## 使用流程
 
 **软文生产 7 步工作流**：
@@ -205,6 +250,7 @@ npm run dev                  # http://localhost:5173
 │   │   ├── models.py           # SQLAlchemy 模型 + 平台预设
 │   │   ├── database.py         # SQLite 连接与会话
 │   │   ├── constants.py        # 内置变量单一事实来源
+│   │   ├── brand_config.py     # 品牌配置单一事实来源（brand.config.json / 环境变量）
 │   │   ├── paths.py            # 源码/打包双模式路径解析
 │   │   ├── routers/            # 20 个路由模块，约 206 个端点
 │   │   └── services/           # 提示词渲染、编排、LLM、发布、合规检测等
@@ -223,6 +269,7 @@ npm run dev                  # http://localhost:5173
 │   ├── scripts/                # 冒烟与端到端验证脚本
 │   └── tests/
 ├── docs/                       # 设计与规范文档
+├── brand.config.json.example   # 品牌配置模板（复制为 brand.config.json 使用）
 ├── start.sh / start.bat        # 一键启动
 ├── init_env.sh / init_env.bat  # 环境初始化
 └── build_exe.bat               # 打包脚本
