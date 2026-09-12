@@ -1,0 +1,143 @@
+/* ============================================================
+   Element Plus 组件覆写
+   ============================================================ */
+.el-card {
+  border-radius: var(--radius-lg) !important;
+  border-color: var(--border-light) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+.el-card__header {
+  padding: 14px 20px !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  font-weight: 600;
+}
+.el-card__body { padding: 20px !important; }
+
+.el-button {
+  border-radius: var(--radius-md) !important;
+  font-weight: 500;
+  transition: var(--transition-fast) !important;
+  height: 34px;
+  padding: 0 16px;
+}
+.el-button--small { height: 30px; padding: 0 12px; font-size: 13px; }
+.el-button--large { height: 40px; padding: 0 20px; }
+.el-button--primary {
+  background: var(--brand-600) !important;
+  border-color: var(--brand-600) !important;
+}
+.el-button--primary:hover {
+  background: var(--brand-700) !important;
+  border-color: var(--brand-700) !important;
+  box-shadow: var(--shadow-brand-sm);
+}
+.el-button--success {
+  background: var(--accent-emerald) !important;
+  border-color: var(--accent-emerald) !important;
+}
+.el-button--warning {
+  background: var(--accent-amber) !important;
+  border-color: var(--accent-amber) !important;
+}
+.el-button--danger {
+  background: var(--accent-rose) !important;
+  border-color: var(--accent-rose) !important;
+}
+/* 文本型按钮：提升可点击感，避免看起来像普通文字
+   - 旧规则把 type=primary 的文本按钮也染成灰色，导致"发布""查看全部"发灰、看不出是按钮
+   - 带类型的文本按钮改为"彩色文字 + 浅色底片"的芯片样式，悬停实心填充，读起来像按钮 */
+.el-button.is-text { color: var(--text-secondary); }
+.el-button.is-text:hover { color: var(--brand-600); background: var(--brand-50) !important; }
+
+.el-button.is-text.el-button--primary { color: var(--brand-600); background: var(--brand-50) !important; }
+.el-button.is-text.el-button--primary:hover { color: #fff; background: var(--brand-600) !important; box-shadow: var(--shadow-brand-sm); }
+
+.el-button.is-text.el-button--success { color: var(--accent-emerald); background: #ecfdf5 !important; }
+.el-button.is-text.el-button--success:hover { color: #fff; background: var(--accent-emerald) !important; }
+
+.el-button.is-text.el-button--danger { color: var(--accent-rose); background: #fff1f3 !important; }
+.el-button.is-text.el-button--danger:hover { color: #fff; background: var(--accent-rose) !important; }
+
+.el-input__wrapper {
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 0 0 1px var(--border-light) inset !important;
+}
+.el-input__wrapper:hover { box-shadow: 0 0 0 1px var(--brand-300) inset !important; }
+.el-input__wrapper.is-focus { box-shadow: 0 0 0 1px var(--brand-500) inset !important; }
+
+.el-select .el-input__wrapper { border-radius: var(--radius-md) !important; }
+
+.el-table {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.el-table th.el-table__cell {
+  background: var(--slate-50) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+  font-size: 13px;
+}
+.el-table td.el-table__cell { font-size: 13px; color: var(--text-primary); }
+.el-table__row:hover > td { background: var(--slate-50) !important; }
+
+.el-tag {
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500;
+  height: 24px;
+  line-height: 22px;
+  padding: 0 8px;
+}
+.el-tag--small { height: 20px; line-height: 18px; padding: 0 6px; font-size: 11px; }
+
+.el-dialog {
+  border-radius: var(--radius-xl) !important;
+  overflow: hidden;
+}
+.el-dialog__header {
+  padding: 20px 24px 16px !important;
+  border-bottom: 1px solid var(--border-light);
+  margin-right: 0 !important;
+}
+.el-dialog__title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.el-dialog__body { padding: 24px !important; }
+.el-dialog__footer {
+  padding: 16px 24px !important;
+  border-top: 1px solid var(--border-light);
+}
+
+.el-form-item__label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.el-form-item { margin-bottom: 18px; }
+
+.el-menu { border-right: none !important; }
+
+.el-pagination { justify-content: flex-end; padding: 16px; }
+
+.el-message { border-radius: var(--radius-md) !important; }
+
+.el-loading-mask { background: rgba(245, 246, 250, 0.7) !important; backdrop-filter: blur(2px); }
+.el-loading-spinner .circular { width: 32px !important; height: 32px !important; }
+
+.el-drawer { border-radius: var(--radius-xl) 0 0 var(--radius-xl) !important; }
+.el-drawer__header { margin-bottom: 0 !important; padding: 20px 24px !important; border-bottom: 1px solid var(--border-light); }
+.el-drawer__body { padding: 20px 24px !important; }
+
+.el-empty__description p { font-size: 13px; color: var(--text-tertiary); }
+
+.el-select-dropdown__item { font-size: 13px; padding: 8px 12px !important; }
+.el-select-dropdown__item.is-hovering { background: var(--slate-100) !important; }
+.el-select-dropdown__item.is-selected { color: var(--brand-600) !important; font-weight: 600; }
+
+.el-collapse-item__header { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.el-collapse { --el-collapse-border-color: var(--border-light); }
+
+.el-badge__content { border-radius: var(--radius-full) !important; font-size: 11px; font-weight: 600; }
+.el-avatar { font-weight: 600; }
+.el-divider { border-color: var(--border-light); }
+.el-divider__text { background: var(--bg-card); color: var(--text-tertiary); font-size: 12px; }
+.el-alert { border-radius: var(--radius-md) !important; padding: 12px 16px !important; }
+
+.el-switch.is-checked .el-switch__core { background-color: var(--brand-600) !important; border-color: var(--brand-600) !important; }
+.el-radio__input.is-checked .el-radio__inner { background: var(--brand-600) !important; border-color: var(--brand-600) !important; }
+.el-radio__input.is-checked + .el-radio__label { color: var(--brand-600) !important; }
+.el-checkbox__input.is-checked .el-checkbox__inner { background: var(--brand-600) !important; border-color: var(--brand-600) !important; }
+.el-checkbox__input.is-checked + .el-checkbox__label { color: var(--brand-600) !important; }
