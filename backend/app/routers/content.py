@@ -14,7 +14,6 @@ router = APIRouter(prefix="/api/content", tags=["内容审核/资产"])
 class ContentIn(BaseModel):
     industry_id: int
     topic_id: Optional[int] = None
-    prompt_log_id: Optional[int] = None
     platform_id: Optional[int] = None
     account_id: Optional[int] = None
     title: str = ""
