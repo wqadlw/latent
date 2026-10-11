@@ -11,9 +11,9 @@ LLM 服务层：可插拔大模型供应商抽象（同步阻塞，便于在 Fas
 依赖：仅使用 Python 标准库 urllib，零额外安装，避免污染环境。
 """
 import json
-import urllib.request
 import urllib.error
-from typing import Dict, Any, List, Optional
+import urllib.request
+from typing import Any, Dict, List
 
 
 class LLMError(Exception):
@@ -101,15 +101,15 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 raw = resp.read().decode("utf-8")
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "ignore")[:400]
-            raise LLMError(f"HTTP {e.code}：{detail}")
+            raise LLMError(f"HTTP {e.code}：{detail}") from e
         except urllib.error.URLError as e:
-            raise LLMError(f"网络错误：{getattr(e, 'reason', e)}")
+            raise LLMError(f"网络错误：{getattr(e, 'reason', e)}") from e
         except TimeoutError:
-            raise LLMError(f"请求超时（>{self.timeout}s）")
+            raise LLMError(f"请求超时（>{self.timeout}s）") from None
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError:
-            raise LLMError(f"返回非 JSON：{raw[:200]}")
+            raise LLMError(f"返回非 JSON：{raw[:200]}") from None
         if not isinstance(payload, dict) or "choices" not in payload or not payload["choices"]:
             raise LLMError(f"返回缺少 choices：{raw[:200]}")
         return payload["choices"][0]["message"]["content"]

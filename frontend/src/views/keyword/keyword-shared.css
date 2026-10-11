@@ -1,0 +1,40 @@
+/*
+ * 关键词 —— GroupPanel / KeywordItemPanel 之间复用的样式。
+ *
+ * ⚠️ 故意不带 scoped（沿用 views/production/steps/step-shared.css、
+ * views/browser-studio/studio-shared.css、views/knowledge/knowledge-shared.css 的先例）：
+ * scoped 样式只作用到子组件的**根元素**，够不到子组件内部，
+ * 所以「两个面板都要用的面板头」写在任何一个面板里都够不到另一个。
+ *
+ * ⚠️ **本文件最需要小心的坑**：`.panel-head` / `.panel-title` / `.item-panel` /
+ * `.batch-bar` / `.head-left` / `.head-right` 这些名字 **Knowledge.vue 那一侧也在用**
+ * （`.item-panel` 两边都是面板根元素，`.batch-bar` 两边都有批量条）。
+ * 照原名放进非 scoped 表会变成全局规则、泄漏到知识库页。
+ * 所以共享类统一加 `kw-` 前缀（与知识库的 `kb-` 前缀对称）。
+ *
+ * 另外 `.kw-layout` 这个名字**两个页面都在用**（知识库 220px / 关键词 232px 两套列宽），
+ * 所以它**不能**进这张表 —— 留在各自壳的 scoped style 里。
+ *
+ * 门槛（照 D4 的规矩）：**必须真的被 2 个以上组件用到**。
+ * 目前只有这三条达标。`.vtable` / `.kw-grid` / `.batch-bar` / `.group-item` 等
+ * 都只被一个组件用，留在各自的 scoped style 里 —— 共享表不是杂物间。
+ */
+
+/* 面板卡片外壳（左右两栏共用） */
+.kw-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* 面板头 */
+.kw-panel-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+}
+.kw-panel-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }

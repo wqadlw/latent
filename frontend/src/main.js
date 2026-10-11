@@ -6,6 +6,7 @@ import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import router from './router'
+import { writeClipboard } from './utils/clipboard'
 import 'element-plus/dist/index.css'
 import './styles/main.css'
 import './styles/element-overrides.css'
@@ -86,17 +87,9 @@ function showErrorOverlay(title, detail) {
         if (action === 'confirm') {
           window.location.reload()
         } else if (action === 'cancel') {
-          // 复制报错到剪贴板（非安全上下文失败时静默忽略，用户仍可手动选中文本）
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(detail).catch(() => {})
-          } else {
-            const ta = document.createElement('textarea')
-            ta.value = detail
-            document.body.appendChild(ta)
-            ta.select()
-            try { document.execCommand('copy') } catch (e) { /* noop */ }
-            document.body.removeChild(ta)
-          }
+          // 复制报错到剪贴板。writeClipboard 本身不弹提示、失败静默返回 false，
+          // 正好符合「全局错误弹窗里不再叠一层 toast」的诉求，用户仍可手动选中文本。
+          writeClipboard(detail)
         }
       },
     }

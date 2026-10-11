@@ -6,12 +6,14 @@
 - 支持「有选择地复制背景」：品牌资产可整体开关，知识点可按条目勾选排除。
 """
 import json
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import BackgroundLibrary, BrandAsset, KnowledgeCategory, KnowledgeItem, Industry
+from ..models import BackgroundLibrary, BrandAsset, Industry, KnowledgeCategory, KnowledgeItem
 
 router = APIRouter(prefix="/api/background-library", tags=["背景库"])
 
@@ -63,7 +65,6 @@ def _build_hard_background(industry_id: int, db: Session) -> str:
         KnowledgeItem.id.desc(),
     ).all()
     high_items = [it for it in items if it.importance == "high"]
-    normal_items = [it for it in items if it.importance != "high"]
 
     # 分类骨架
     categories = db.query(KnowledgeCategory).filter(

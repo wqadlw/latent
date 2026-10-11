@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  backend:
+    name: 后端测试
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: 代码检查（ruff）
+        run: |
+          pip install ruff
+          ruff check .
+
+      - name: 运行测试
+        # 测试自带隔离：conftest 把数据库指向临时目录，不碰开发库
+        run: pytest tests/ -q --cov=app --cov-report=term-missing
+
+  frontend:
+    name: 前端构建
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 类型检查（vue-tsc）
+        # 存量 .js/.vue 不参与检查（allowJs + checkJs:false），只有 lang="ts" 的新文件会被检查
+        run: npm run typecheck
+
+      - name: 设计令牌审计
+        # A 类（未定义且无 fallback）必须为 0 —— 这类声明会被浏览器静默丢弃
+        run: npm run audit:tokens
+
+      - name: 构建
+        run: npm run build

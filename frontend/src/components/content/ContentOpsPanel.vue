@@ -84,7 +84,7 @@
                   :draggable="viewMode === 'schedule'"
                   @dragstart="onTaskDragStart(t, $event)"
                   @click="openTask(t)"
-                  :title="(t.title || ('任务 #' + t.id)) + ' · ' + (statusMeta[t.status]?.label || t.status)"
+                  :title="(t.title || ('任务 #' + t.id)) + ' · ' + taskStatusLabel(t.status)"
                 >
                   <span class="task-chip__bar"></span>
                   <span class="task-chip__title">{{ t.title || ('任务 #' + t.id) }}</span>
@@ -114,7 +114,7 @@
             >
               <span class="task-chip__bar"></span>
               <span class="unscheduled__title">{{ t.title || ('任务 #' + t.id) }}</span>
-              <span class="unscheduled__status">{{ statusMeta[t.status]?.label || t.status }}</span>
+              <span class="unscheduled__status">{{ taskStatusLabel(t.status) }}</span>
             </div>
             <EmptyState v-if="!unscheduledTasks.length" title="无待排期任务" description="排期视图下没有未排期的任务" size="small" icon="CircleCheck" />
           </div>
@@ -126,7 +126,7 @@
         <div v-if="activeTask" class="drawer-body">
           <div class="drawer-row">
             <span class="drawer-label">状态</span>
-            <el-tag :type="statusMeta[activeTask.status]?.type || 'info'" size="small" effect="light">{{ statusMeta[activeTask.status]?.label || activeTask.status }}</el-tag>
+            <el-tag :type="taskStatusType(activeTask.status)" size="small" effect="light">{{ taskStatusLabel(activeTask.status) }}</el-tag>
           </div>
           <div class="drawer-row">
             <span class="drawer-label">平台</span>
@@ -138,7 +138,7 @@
           </div>
           <div class="drawer-row">
             <span class="drawer-label">创建时间</span>
-            <span class="drawer-value">{{ (activeTask.create_time || '—').slice(0, 16) }}</span>
+            <span class="drawer-value">{{ formatDateTime(activeTask.create_time) }}</span>
           </div>
           <div class="drawer-row">
             <span class="drawer-label">发布链接</span>
@@ -300,6 +300,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Refresh, ArrowLeft, ArrowRight, Plus, Delete, TrendCharts, EditPen, Calendar } from '@element-plus/icons-vue'
 import { useAppStore } from '../../store/app'
 import { productionApi, effectApi, keywordApi } from '../../api'
+import { toDateKey, addDays, formatDateTime } from '../../utils/format'
+import { taskStatusLabel, taskStatusType } from '../../constants/status'
+import { downloadCsv } from '../../utils/download'
 import StatCard from '../StatCard.vue'
 import EmptyState from '../EmptyState.vue'
 
@@ -319,17 +322,10 @@ const statusFilter = ref('all')
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日']
 
-const statusMeta = {
-  draft: { label: '草稿', type: 'info', color: '#818cf8' },
-  processing: { label: '进行中', type: 'warning', color: '#f59e0b' },
-  done: { label: '已完成', type: 'success', color: '#10b981' },
-  archived: { label: '已归档', type: 'info', color: '#94a3b8' },
-}
-
 const today = new Date()
 const viewYear = ref(today.getFullYear())
 const viewMonth = ref(today.getMonth())
-const todayKey = fmtDate(today)
+const todayKey = toDateKey(today)
 
 const dropKey = ref(null)
 const dragTaskId = ref(null)
@@ -338,17 +334,6 @@ const drawerVisible = ref(false)
 const activeTask = ref(null)
 const planDateModel = ref('')
 
-function fmtDate(d) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-function addDays(d, n) {
-  const x = new Date(d)
-  x.setDate(x.getDate() + n)
-  return x
-}
 
 function dateKeyOf(t) {
   if (viewMode.value === 'schedule') return t.plan_date || ''
@@ -392,7 +377,7 @@ const cells = computed(() => {
   const out = []
   for (let i = 0; i < 42; i++) {
     const d = addDays(start, i)
-    const key = fmtDate(d)
+    const key = toDateKey(d)
     out.push({
       key,
       day: d.getDate(),
@@ -506,24 +491,17 @@ function exportCsv() {
   }
   exporting.value = true
   try {
-    const header = ['标题', '状态', '平台', '创建日期', '计划发布日']
     const rows = tasks.value.map(t => [
       t.title || `任务 #${t.id}`,
-      statusMeta[t.status]?.label || t.status,
+      taskStatusLabel(t.status),
       platformName(t),
       (t.create_time || '').slice(0, 10),
       t.plan_date || '',
     ])
-    const csv = [header, ...rows]
-      .map(r => r.map(c => `"${(c ?? '').toString().replace(/"/g, '""')}"`).join(','))
-      .join('\n')
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `内容运营日历_${store.currentIndustryName || '行业'}_${todayKey}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadCsv(
+      [['标题', '状态', '平台', '创建日期', '计划发布日'], ...rows],
+      `内容运营日历_${store.currentIndustryName || '行业'}_${todayKey}.csv`,
+    )
     ElMessage.success('已导出 CSV')
   } finally {
     exporting.value = false
@@ -576,7 +554,10 @@ function openCreate() {
   form.value = {
     keyword_id: keywords.value[0]?.id,
     model_type: 'ChatGPT',
-    record_date: new Date().toISOString().slice(0, 10),
+    // 这里必须用本地日期。原先写的是 `new Date().toISOString().slice(0, 10)`——
+    // toISOString 输出的是 **UTC** 日期，东八区下午 4 点后拿到的就是「昨天」，
+    // 默认记录日期会整整差一天。toDateKey 按本地时区取。
+    record_date: toDateKey(new Date()),
     has_brand: 0, has_website: 0, has_contact: 0, rank: 0, remark: '',
   }
   createDialog.value = true

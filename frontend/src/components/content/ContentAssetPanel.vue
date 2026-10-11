@@ -41,9 +41,9 @@
             <div class="vcell col-platform">{{ getPlatformName(item.platform_id) }}</div>
             <div class="vcell col-account">{{ getAccountName(item.account_id) }}</div>
             <div class="vcell col-status">
-              <el-tag size="small" :type="publishColor(item.publish_status)" effect="light">{{ publishLabel(item.publish_status) }}</el-tag>
+              <el-tag size="small" :type="assetPublishType(item.publish_status)" effect="light">{{ assetPublishLabel(item.publish_status) }}</el-tag>
             </div>
-            <div class="vcell col-time">{{ formatTime(item.create_time) }}</div>
+            <div class="vcell col-time">{{ formatDateTime(item.create_time) }}</div>
             <div class="vcell col-actions">
               <el-button text size="small" :icon="View" @click="viewContent(item)">查看</el-button>
               <el-button text size="small" :icon="CopyDocument" @click="checkSimilar(item)">相似度</el-button>
@@ -62,7 +62,7 @@
         <div class="detail-meta">
           <el-tag size="small">{{ getPlatformName(current.platform_id) }}</el-tag>
           <span>{{ getAccountName(current.account_id) }}</span>
-          <span>{{ formatTime(current.create_time) }}</span>
+          <span>{{ formatDateTime(current.create_time) }}</span>
         </div>
         <div class="detail-body">{{ current.content }}</div>
       </div>
@@ -87,6 +87,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Search, View, Delete, CopyDocument, FolderOpened } from '@element-plus/icons-vue'
 import { useAppStore } from '../../store/app'
 import { contentApi, platformApi, accountApi } from '../../api'
+import { formatDateTime } from '../../utils/format'
+import { assetPublishLabel, assetPublishType } from '../../constants/status'
+import { nameById } from '../../utils/lookup'
 import EmptyState from '../EmptyState.vue'
 import VirtualList from '../VirtualList.vue'
 
@@ -125,11 +128,8 @@ async function loadList() {
   list.value = res.data || []
 }
 
-function getPlatformName(id) { return platforms.value.find(p => p.id === id)?.name || '—' }
-function getAccountName(id) { return accounts.value.find(a => a.id === id)?.account_name || '—' }
-function publishColor(s) { return { pending: 'info', published: 'success', offline: 'danger' }[s] }
-function publishLabel(s) { return { pending: '待发布', published: '已发布', offline: '已下架' }[s] }
-function formatTime(t) { return t ? t.slice(0, 16) : '—' }
+const getPlatformName = (id) => nameById(platforms.value, id)
+const getAccountName = (id) => nameById(accounts.value, id, 'account_name')
 
 function viewContent(row) {
   current.value = row

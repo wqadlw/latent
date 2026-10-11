@@ -1,10 +1,11 @@
 """品牌资产库路由"""
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import BrandAsset, Industry
+from ..models import BrandAsset
 from ..utils import to_dict
 
 router = APIRouter(prefix="/api/brand-asset", tags=["品牌资产库"])

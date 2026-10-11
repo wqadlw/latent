@@ -1,12 +1,14 @@
 """内容审核与资产管理路由"""
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List, Optional
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import ContentAsset, Topic, Platform, Account, Keyword, KnowledgeItem
-from ..utils import to_dict, parse_ids, parse_datetime
+from ..models import ContentAsset, Keyword, Platform, Topic
 from ..services.rule_checker import run_full_check
+from ..utils import parse_datetime, parse_ids, to_dict
 
 router = APIRouter(prefix="/api/content", tags=["内容审核/资产"])
 
@@ -146,7 +148,7 @@ def check_similarity(item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "内容不存在")
     def tokenize(text):
         text = text or ""
-        return set(text[i:i+2] for i in range(len(text)-1))
+        return {text[i:i + 2] for i in range(len(text) - 1)}
 
     target_tokens = tokenize(it.content)
     same_platform = db.query(ContentAsset).filter(

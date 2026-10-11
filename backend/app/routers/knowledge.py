@@ -9,14 +9,16 @@
 - 分组列表接口（按分类分组，供生产第4步使用）
 - 批量导入支持新字段
 """
-import json
 import csv
 import io
+import json
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from typing import List, Optional
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from ..database import get_db
 from ..models import KnowledgeCategory, KnowledgeItem
 from ..utils import to_dict
@@ -164,7 +166,6 @@ def list_items_grouped(industry_id: int, keyword: Optional[str] = None, db: Sess
 
     # 按分类分组
     groups = []
-    cat_map = {c.id: c for c in categories}
     for c in categories:
         group_items = [it for it in items if it.category_id == c.id]
         groups.append({
@@ -533,7 +534,7 @@ def get_stats(industry_id: int, db: Session = Depends(get_db)):
         cnt = base_q.filter(KnowledgeItem.category_id == c.id).count()
         by_category.append({"id": c.id, "name": c.name, "color": c.color, "count": cnt})
     uncategorized = base_q.filter(
-        (KnowledgeItem.category_id == 0) | (KnowledgeItem.category_id == None)
+        (KnowledgeItem.category_id == 0) | (KnowledgeItem.category_id.is_(None))
     ).count()
     by_category.append({"id": 0, "name": "未分类", "color": "#94a3b8", "count": uncategorized})
 

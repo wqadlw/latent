@@ -169,7 +169,7 @@
             <el-option v-for="p in personas" :key="p.id" :label="p.name" :value="p.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="内容赛道"><el-input v-model="accountForm.content_track" placeholder="如：真空泵选型" /></el-form-item>
+        <el-form-item label="内容赛道"><el-input v-model="accountForm.content_track" placeholder="如：敏感肌修护" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="accountDialog = false">取消</el-button>
@@ -181,7 +181,7 @@
     <el-dialog v-model="personaDialog" :title="editingPersona ? '编辑人设' : '新建人设'" width="520px">
       <el-form :model="personaForm" label-width="100px">
         <el-form-item label="人设名称"><el-input v-model="personaForm.name" placeholder="如：技术专家老王" /></el-form-item>
-        <el-form-item label="身份设定"><el-input v-model="personaForm.identity" type="textarea" :rows="2" placeholder="如：10年真空泵行业从业经验" /></el-form-item>
+        <el-form-item label="身份设定"><el-input v-model="personaForm.identity" type="textarea" :rows="2" placeholder="如：10年护肤研发从业经验" /></el-form-item>
         <el-form-item label="语气风格"><el-input v-model="personaForm.tone_style" type="textarea" :rows="2" placeholder="如：专业严谨但不失亲和" /></el-form-item>
         <el-form-item label="联系方式规则"><el-input v-model="personaForm.contact_rule" type="textarea" :rows="2" placeholder="如：仅在文末自然带出官网与电话" /></el-form-item>
       </el-form>
@@ -200,6 +200,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, MagicStick, Connection, User, Avatar } from '@element-plus/icons-vue'
 import { useAppStore } from '../store/app'
 import { platformApi, personaApi, accountApi, platformPresetApi } from '../api'
+import { nameById } from '../utils/lookup'
 import EmptyState from '../components/EmptyState.vue'
 
 const store = useAppStore()
@@ -230,12 +231,8 @@ function parseFeatures(config) {
   } catch { return '' }
 }
 
-function getPlatformName(id) {
-  return platforms.value.find(p => p.id === id)?.name || '—'
-}
-function getPersonaName(id) {
-  return personas.value.find(p => p.id === id)?.name || '—'
-}
+const getPlatformName = (id) => nameById(platforms.value, id)
+const getPersonaName = (id) => nameById(personas.value, id)
 
 async function loadAll() {
   if (!store.currentIndustryId) return

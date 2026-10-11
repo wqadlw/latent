@@ -8,8 +8,8 @@
 防止未来任一处漂移重新引入残留占位符风险。
 """
 import app.constants as constants
-import app.services.prompt_engine as prompt_engine
 import app.routers.prompt_library as prompt_library
+import app.services.prompt_engine as prompt_engine
 from app.models import PLATFORM_PRESETS
 
 

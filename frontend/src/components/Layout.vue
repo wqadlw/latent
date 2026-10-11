@@ -5,20 +5,12 @@
       <!-- Logo 区 -->
       <div class="sidebar__logo" @click="$router.push('/dashboard')">
         <div class="logo-mark">
-          <svg viewBox="0 0 32 32" fill="none" width="28" height="28">
-            <rect x="2" y="2" width="28" height="28" rx="8" fill="url(#lg)"/>
-            <path d="M10 11h12M10 16h12M10 21h7" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
-            <defs>
-              <linearGradient id="lg" x1="0" y1="0" x2="32" y2="32">
-                <stop stop-color="#818cf8"/><stop offset="1" stop-color="#4f46e5"/>
-              </linearGradient>
-            </defs>
-          </svg>
+          <BrandMark :size="30" foreground="#FFFFFF" accent="#9CA3AF" />
         </div>
         <transition name="fade">
           <div v-show="!store.sidebarCollapsed" class="logo-text">
-            <span class="logo-title">Prompt Matrix</span>
-            <span class="logo-sub">软文宣传矩阵系统</span>
+            <span class="logo-title">显影 Latent</span>
+            <span class="logo-sub">企业级 GEO 运营系统</span>
           </div>
         </transition>
       </div>
@@ -106,17 +98,20 @@
           <el-tag size="small" type="success" effect="plain" class="env-chip">
             <span class="env-dot"></span>已连接
           </el-tag>
-          <el-dropdown trigger="click">
+          <el-dropdown trigger="click" @command="onUserCommand">
             <div class="user-chip">
-              <el-avatar :size="30" class="user-avatar">A</el-avatar>
-              <span class="user-name">管理员</span>
+              <el-avatar :size="30" class="user-avatar">{{ avatarText }}</el-avatar>
+              <span class="user-name">{{ auth.displayName }}</span>
               <el-icon class="user-arrow"><ArrowDown /></el-icon>
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item :icon="User">管理员</el-dropdown-item>
-                <el-dropdown-item :icon="Setting" divided>系统设置</el-dropdown-item>
-                <el-dropdown-item :icon="SwitchButton">退出登录</el-dropdown-item>
+                <el-dropdown-item disabled>
+                  {{ auth.isAdmin ? '管理员' : '编辑' }} · {{ auth.username }}
+                </el-dropdown-item>
+                <el-dropdown-item command="password" :icon="Lock" divided>修改密码</el-dropdown-item>
+                <el-dropdown-item command="settings" :icon="Setting">系统设置</el-dropdown-item>
+                <el-dropdown-item command="logout" :icon="SwitchButton" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -130,83 +125,55 @@
         </router-view>
       </main>
     </div>
+
+    <!-- 修改密码 -->
+    <el-dialog v-model="pwdVisible" title="修改密码" width="420px" append-to-body>
+      <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-position="top">
+        <el-form-item label="原密码" prop="old_password">
+          <el-input v-model="pwdForm.old_password" type="password" show-password placeholder="请输入原密码" />
+        </el-form-item>
+        <el-form-item label="新密码" prop="new_password">
+          <el-input v-model="pwdForm.new_password" type="password" show-password placeholder="至少 8 位" />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirm_password">
+          <el-input v-model="pwdForm.confirm_password" type="password" show-password placeholder="再次输入新密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pwdVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pwdSubmitting" @click="submitPassword">确认修改</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, provide } from 'vue'
+import { computed, onMounted, provide, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { User, Setting, SwitchButton } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown, Lock, Setting, SwitchButton } from '@element-plus/icons-vue'
+import { authApi } from '../api'
 import { useAppStore } from '../store/app'
+import { useAuthStore } from '../store/auth'
+import BrandMark from './BrandMark.vue'
 import GlobalSearch from './GlobalSearch.vue'
+import { buildMenuGroups } from '../constants/menu'
 
 const route = useRoute()
 const router = useRouter()
 const store = useAppStore()
+const auth = useAuthStore()
 
 // 将顶栏操作区(#page-actions)的真实 DOM 元素引用提供给子视图，
 // 避免 <Teleport to="#page-actions"> 在懒加载路由挂载时因 querySelector 时序失败而崩溃。
 const pageActionsEl = ref(null)
 provide('pageActionsTarget', pageActionsEl)
 
-const menuGroups = computed(() => [
-  {
-    title: '工作台',
-    items: [
-      { path: '/dashboard', title: '工作台', icon: 'Odometer' },
-    ],
-  },
-    {
-      title: '内容生产',
-      items: [
-        { path: '/production', title: '软文生产', icon: 'MagicStick' },
-        { path: '/content', title: '内容中心', icon: 'Box', badge: 'NEW' },
-      ],
-    },
-  {
-    title: '品牌资产',
-    items: [
-      { path: '/brand-asset', title: '品牌资产库', icon: 'GoldMedal', badge: 'NEW' },
-    ],
-  },
-  {
-    title: '基础配置',
-    items: [
-      { path: '/industry', title: '行业空间', icon: 'OfficeBuilding' },
-      { path: '/platform', title: '平台账号人设', icon: 'Connection' },
-      { path: '/knowledge', title: '知识库', icon: 'Collection' },
-      { path: '/keyword', title: '关键词选题', icon: 'Key' },
-    ],
-  },
-  {
-    title: 'AI配置',
-    items: [
-      { path: '/prompt-library', title: 'AI提示词库', icon: 'Files', badge: '4类' },
-      { path: '/prompt-center', title: '提示词总览', icon: 'Memo', badge: '收口' },
-      { path: '/rule', title: '规则库', icon: 'SetUp' },
-      { path: '/settings', title: 'LLM 配置', icon: 'Cpu', badge: 'NEW' },
-    ],
-  },
-  {
-    title: 'GEO 作战',
-    items: [
-      { path: '/geo-canvas', title: 'GEO 定位画布', icon: 'Aim', badge: 'NEW' },
-      { path: '/persona', title: '客户画像', icon: 'User' },
-      { path: '/intent-question', title: '意图问题库', icon: 'ChatDotRound' },
-      { path: '/geo-monitor', title: 'AI推荐监测', icon: 'Monitor' },
-    ],
-  },
-  {
-    title: '发布自动化',
-    items: [
-      { path: '/publish', title: '发布中心', icon: 'Promotion', badge: 'NEW' },
-      { path: '/browser-studio', title: '浏览器工作室', icon: 'Monitor', badge: 'NEW' },
-      { path: '/automation-studio', title: '自动化指挥中心', icon: 'SetUp', badge: 'NEW' },
-      { path: '/manual', title: '操作手册', icon: 'Reading' },
-    ],
-  },
-])
+// 菜单由路由派生（D7 确立的单一来源）：文案取 meta.title、分组取 meta.group、
+// 徽标取 meta.badge、组顺序与项顺序取路由的声明顺序。
+// 改菜单请改 src/router/index.js，本文件不再持有任何菜单文案字面量。
+// 详见 src/constants/menu.js 的头部注释。
+const menuGroups = computed(() => buildMenuGroups(router.getRoutes()))
 
 const isActive = (path) => route.path === path
 
@@ -223,9 +190,94 @@ const refresh = () => {
   window.location.reload()
 }
 
+// ============ 账号 ============
+const avatarText = computed(() => (auth.username || 'U').charAt(0).toUpperCase())
+
+const pwdVisible = ref(false)
+const pwdSubmitting = ref(false)
+const pwdFormRef = ref(null)
+const pwdForm = reactive({ old_password: '', new_password: '', confirm_password: '' })
+
+const pwdRules = {
+  old_password: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+  new_password: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 8, message: '新密码至少 8 位', trigger: 'blur' },
+  ],
+  confirm_password: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (_rule, value, callback) => {
+        if (value !== pwdForm.new_password) callback(new Error('两次输入的密码不一致'))
+        else callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+}
+
+function onUserCommand(command) {
+  if (command === 'password') {
+    pwdForm.old_password = ''
+    pwdForm.new_password = ''
+    pwdForm.confirm_password = ''
+    pwdVisible.value = true
+  } else if (command === 'settings') {
+    router.push('/settings')
+  } else if (command === 'logout') {
+    onLogout()
+  }
+}
+
+async function submitPassword() {
+  const valid = await pwdFormRef.value?.validate().catch(() => false)
+  if (!valid) return
+  pwdSubmitting.value = true
+  try {
+    await authApi.changePassword({
+      old_password: pwdForm.old_password,
+      new_password: pwdForm.new_password,
+    })
+    pwdVisible.value = false
+    ElMessage.success('密码已修改，请重新登录')
+    // 后端未做令牌吊销，主动登出以确保新密码立即生效
+    setTimeout(() => {
+      auth.logout()
+      router.replace({ name: 'Login' })
+    }, 800)
+  } catch {
+    // 错误提示已由 axios 拦截器统一弹出
+  } finally {
+    pwdSubmitting.value = false
+  }
+}
+
+async function onLogout() {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出登录', {
+      confirmButtonText: '退出',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return // 用户取消
+  }
+  auth.logout()
+  router.replace({ name: 'Login' })
+  ElMessage.success('已退出登录')
+}
+
 onMounted(async () => {
   store.initFromStorage()
   await store.loadIndustries()
+  // 用服务端数据校准本地用户态（角色可能已被管理员改动）
+  if (auth.isLoggedIn) {
+    try {
+      await auth.fetchMe()
+    } catch {
+      // 401 由拦截器处理
+    }
+  }
 })
 </script>
 
@@ -392,14 +444,24 @@ onMounted(async () => {
   flex-shrink: 0;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
-.topbar__left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.topbar__title-group { display: flex; align-items: center; gap: 8px; }
-.topbar__group { font-size: 12px; color: var(--text-tertiary); font-weight: 500; }
-.topbar__sep { color: var(--text-quaternary); font-size: 12px; }
-.topbar__title { font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0; letter-spacing: -0.2px; }
-.topbar__subtitle { font-size: 12px; color: var(--text-tertiary); margin: 0; }
+/* ⚠️ 这里的 flex 收缩行为是踩过坑的，别随手改：
+   `.topbar` 是 space-between 两栏。右栏里既有全局搜索，又会由子视图 Teleport 进任意多个
+   操作按钮（Knowledge 一次塞 5 个，实测右栏需要 1215px，而顶栏只有 1200px）。
+   若左栏的 min-width 是 0，浏览器就会优先把左栏压扁 —— 副标题随即**逐字换行**，
+   在 60px 高的顶栏里渲染成一条竖排文字，看起来像「标题坏了」。
 
-.topbar__right { display: flex; align-items: center; gap: 10px; }
+   所以三条约束缺一不可：
+     1. 左栏给 min-width 下限（不再允许压到 0），并用 max-width 防止它反过来吃掉右栏；
+     2. 左栏内部一律 nowrap + 省略号，宁可截断也绝不换行；
+     3. 空间不足时由**搜索框**先收缩（见 GlobalSearch.vue 的 flex 基准）。 */
+.topbar__left { display: flex; flex-direction: column; gap: 2px; min-width: 140px; max-width: 360px; flex: 0 1 auto; }
+.topbar__title-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.topbar__group { font-size: 12px; color: var(--text-tertiary); font-weight: 500; white-space: nowrap; }
+.topbar__sep { color: var(--text-quaternary); font-size: 12px; }
+.topbar__title { font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar__subtitle { font-size: 12px; color: var(--text-tertiary); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.topbar__right { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 1 auto; }
 .topbar__page-actions { display: flex; align-items: center; gap: 8px; min-height: 34px; }
 .topbar__divider { width: 1px; height: 20px; background: var(--border-light); margin: 0 4px; }
 
@@ -469,6 +531,15 @@ onMounted(async () => {
 .slide-up-leave-active { transition: all 0.18s ease; }
 .slide-up-enter-from { opacity: 0; transform: translateY(10px); }
 .slide-up-leave-to { opacity: 0; transform: translateY(-6px); }
+
+/* 顶栏空间不够时，优先收起全局搜索（原因见上方 .topbar__left 的注释）：
+   Knowledge 这类页面会 Teleport 5 个操作按钮进顶栏，1440 下右栏就需要 1215px，
+   而顶栏只有 1200px。搜索是顶栏里最不关键的元素 —— 与其被压成一个 0 宽的细条
+   （看起来像坏了），不如直接收起，把空间让给页面自己的操作。
+   注：`.global-search` 是 GlobalSearch.vue 的根元素，scoped 样式能作用到它。 */
+@media (max-width: 1400px) {
+  .global-search { display: none; }
+}
 
 /* 响应式 */
 @media (max-width: 768px) {

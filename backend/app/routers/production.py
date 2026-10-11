@@ -14,29 +14,41 @@
 
 系统边界：不调用任何 AI 接口，仅负责编排提示词与回填人工产出。
 """
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import Optional, List
-from pydantic import BaseModel
-from datetime import datetime
 import json
 import re
+from datetime import datetime
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from ..database import get_db, now
 from ..models import (
-    ProductionTask, PromptLibraryItem, Industry, Platform, Account, Persona,
-    Keyword, KeywordGroup, KnowledgeItem, KnowledgeCategory, ContentAsset, BrandAsset, RuleLibrary,
-    ContentVersion, TargetPersona, IntentQuestion, LlmConfig,
+    Account,
+    BrandAsset,
+    ContentAsset,
+    ContentVersion,
+    IntentQuestion,
+    Keyword,
+    KeywordGroup,
+    KnowledgeCategory,
+    KnowledgeItem,
+    Persona,
+    Platform,
+    ProductionTask,
+    PromptLibraryItem,
+    RuleLibrary,
+    TargetPersona,
 )
-from ..utils import to_dict, parse_json, parse_ids, parse_datetime
-from ..services.prompt_engine import build_render_context, render_prompt, unresolved_variables
-from ..services.geo_score import compute_geo_score, build_geo_audit_prompt, parse_geo_audit_result
-from ..services.llm import get_provider, LLMError
 from ..services.generation import (
-    generate_step_text, _parse_geo_finalize, _CATEGORY_BY_STEP,
-    _STEP_PROMPT_FIELD, assign_default_prompts,
+    _parse_geo_finalize,
+    generate_step_text,
 )
+from ..services.geo_score import build_geo_audit_prompt, compute_geo_score, parse_geo_audit_result
 from ..services.orchestrator import run_quality_gate
+from ..services.prompt_engine import build_render_context, render_prompt, unresolved_variables
+from ..utils import to_dict
 
 router = APIRouter(prefix="/api/production", tags=["软文生产工作空间"])
 
@@ -368,12 +380,12 @@ def _assemble_geo_inputs(t, db):
             if iq.persona_id:
                 tp = db.query(TargetPersona).filter(TargetPersona.id == iq.persona_id).first()
                 target_persona_name = tp.name if tp else ""
-    return dict(
-        content=content, brand_name=brand_name, official_website=official_website,
-        contact=contact, core_products=core_products, selling_points=selling_points,
-        intent_question=intent_question, expected_recommendation=expected_recommendation,
-        target_persona_name=target_persona_name,
-    )
+    return {
+        "content": content, "brand_name": brand_name, "official_website": official_website,
+        "contact": contact, "core_products": core_products, "selling_points": selling_points,
+        "intent_question": intent_question, "expected_recommendation": expected_recommendation,
+        "target_persona_name": target_persona_name,
+    }
 
 
 def _resolve_task_publish_mode(t: ProductionTask, db: Session) -> tuple:
@@ -414,24 +426,53 @@ def run_manual_quality_gate(db: Session, t: ProductionTask, text: str, title: st
         "expected_recommendation": inp.get("expected_recommendation", ""),
         "target_persona_name": inp.get("target_persona_name", ""),
     }
-    gate = run_quality_gate(text, ctx, mode=mode, output_format=out, title=title)
+    gate = run_quality_gate(text, ctx, mode=mode, output_format=out, title=title,
+                            db=db, industry_id=int(getattr(t, "industry_id", 0) or 0))
     gate["mode"] = mode
     gate["output_format"] = out
     return gate
 
 
 def _merge_safety_report(ai_suggestions: str, gate: dict) -> str:
-    """把 AI 优化建议 + 合规闸门结论合并为安全筛选报告（非破坏式，清晰分节）。"""
+    """把 AI 优化建议 + 合规闸门结论合并为安全筛选报告（非破坏式，清晰分节）。
+
+    v3.1 起额外呈现**三态决策**与**无依据表述清单** ——
+    「未通过」是不够可执行的结论，运营需要知道「哪句话没依据、该改什么」。
+    """
     parts = []
     _pass = bool(gate.get("gate_pass"))
     _head = "【平台合规闸门】" + ("✅ 通过" if _pass else "⚠️ 未通过（发布前建议整改）")
     parts.append(f"{_head}（模式：{gate.get('mode', 'geo')}）")
+
+    # 三态决策（v3.1）
+    decision = gate.get("decision")
+    if decision:
+        label = gate.get("decision_label") or decision
+        score = gate.get("score")
+        parts.append(f"【质检决策】{label}（综合分 {score} / 100）")
+
     issues = gate.get("issues") or []
     if issues:
         parts.append("待整改问题：")
         parts.extend(f"  · {i}" for i in issues[:20])
     else:
         parts.append("未检出平台合规/软文特征风险项。")
+
+    # 无依据表述：把「哪句话缺依据」直接摆出来，而不是只给一个覆盖率数字
+    unverified = gate.get("unverified_claims") or []
+    if unverified:
+        parts.append(f"无依据表述（{len(unverified)} 处，需补来源或改写）：")
+        for u in unverified[:10]:
+            parts.append(f"  · [{u.get('type', '')}] {u.get('text', '')}")
+            if u.get("note"):
+                parts.append(f"      → {u['note']}")
+
+    blockers = gate.get("hard_blockers") or []
+    if blockers:
+        parts.append("硬阻塞项（一票否决）：")
+        for b in blockers[:10]:
+            parts.append(f"  · {b.get('message', '')}")
+
     body = "\n".join(parts)
     if ai_suggestions:
         return f"{ai_suggestions}\n\n{'-' * 24}\n{body}"
@@ -483,6 +524,13 @@ def apply_geo_finalize(db: Session, t: ProductionTask, ai_result: str) -> dict:
             "geo_score": int(gate.get("geo_score") or 0),
             "mode": gate.get("mode", "geo"),
             "issues": gate.get("issues") or [],
+            # v3.1：三态决策与证据可信度
+            "decision": gate.get("decision"),
+            "decision_label": gate.get("decision_label"),
+            "score": gate.get("score"),
+            "hard_blockers": gate.get("hard_blockers") or [],
+            "unverified_claims": gate.get("unverified_claims") or [],
+            "evidence_coverage": gate.get("evidence_coverage"),
         },
     }
 
@@ -530,7 +578,7 @@ def geo_audit_import(task_id: int, payload: GeoAuditImportIn, db: Session = Depe
             target_persona_name=inp.get("target_persona_name", ""),
         )
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
     t.geo_score = int(result["score"])
     db.commit()
     result["task_id"] = task_id

@@ -91,10 +91,10 @@
     <el-dialog v-model="dialogVisible" :title="editing ? '编辑监测任务' : '新建监测任务'" width="600px">
       <el-form :model="form" label-width="100px">
         <el-form-item label="任务名称">
-          <el-input v-model="form.name" placeholder="可选，如「真空泵选型 - 品牌提及监测」" />
+          <el-input v-model="form.name" placeholder="可选，如「敏感肌修护 - 品牌提及监测」" />
         </el-form-item>
         <el-form-item label="目标问题" required>
-          <el-input v-model="form.target_query" type="textarea" :rows="3" placeholder="向 AI 提的问题，如「真空泵选型推荐哪个品牌比较好？」" />
+          <el-input v-model="form.target_query" type="textarea" :rows="3" placeholder="向 AI 提的问题，如「敏感肌修护面霜推荐哪个品牌比较好？」" />
         </el-form-item>
         <el-form-item label="品牌名" required>
           <el-input v-model="form.brand_name" placeholder="要监测的品牌名，如「莱宝」" />
@@ -208,6 +208,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Search, CopyDocument, Monitor, RefreshLeft, OfficeBuilding, ChatDotRound, MagicStick } from '@element-plus/icons-vue'
 import { useAppStore } from '../store/app'
 import { geoMonitorApi } from '../api'
+import { writeClipboard } from '../utils/clipboard'
 import EmptyState from '../components/EmptyState.vue'
 
 const pageActionsTarget = inject('pageActionsTarget', null)
@@ -381,8 +382,12 @@ async function copyPrompt(platform) {
   try {
     const res = await geoMonitorApi.getPrompt(currentMonitor.value.id, platform)
     const prompt = res.data?.prompt || ''
-    await navigator.clipboard.writeText(prompt)
-    ElMessage.success(`已复制 ${platform} 提问提示词，去粘贴提问吧`)
+    // 用底层 writeClipboard 保留本处自定义提示语，同时获得非安全上下文降级
+    if (await writeClipboard(prompt)) {
+      ElMessage.success(`已复制 ${platform} 提问提示词，去粘贴提问吧`)
+    } else {
+      ElMessage.error('复制失败')
+    }
   } catch {
     ElMessage.error('复制失败')
   }

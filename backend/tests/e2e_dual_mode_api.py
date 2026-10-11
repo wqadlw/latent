@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """端到端验证：通过真实 API 跑 mock 流水线，确认 platform 模式产出过审成稿。"""
-import json, time, urllib.request, urllib.error, re
+import json
+import re
+import time
+import urllib.error
+import urllib.request
 
 BASE = "http://127.0.0.1:8765"
 BRAND = "示例品牌科技有限公司"

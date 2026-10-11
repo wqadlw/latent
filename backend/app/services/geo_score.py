@@ -15,7 +15,6 @@
 
 import re
 
-
 # 维度权重（合计 100）
 WEIGHTS = {
     "entity_signals": 25,   # 品牌实体信号
@@ -555,7 +554,7 @@ def parse_geo_audit_result(raw, intent_question: str = "", expected_recommendati
     try:
         data = _extract_json_obj(raw)
     except Exception:
-        raise ValueError("无法解析 AI 返回的评分结果，请确认粘贴的是完整 JSON（可含 ```json 代码块）")
+        raise ValueError("无法解析 AI 返回的评分结果，请确认粘贴的是完整 JSON（可含 ```json 代码块）") from None
     if not isinstance(data, dict):
         raise ValueError("AI 返回结果不是有效的 JSON 对象")
     dims = {}

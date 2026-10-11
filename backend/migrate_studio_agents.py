@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """浏览器工作室双智能体字段迁移：为 browser_studio_run / browser_studio_step 追加列（幂等）。"""
-import sqlite3, os
+import os
+import sqlite3
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "database.db")
 

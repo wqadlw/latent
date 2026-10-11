@@ -14,14 +14,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
+from app.database import Base
+from app.models import BrandAsset, Industry
+from app.routers.browser_studio import RewriteRequest, rewrite_article_endpoint
 from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from app.database import Base
-from app.models import BrandAsset, Industry
-from app.routers.browser_studio import rewrite_article_endpoint, RewriteRequest
 
 
 @pytest.fixture

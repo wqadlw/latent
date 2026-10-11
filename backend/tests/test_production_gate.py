@@ -4,18 +4,17 @@
 现改为复用 orchestrator.run_quality_gate（与自动流同一真源）。
 """
 import pytest
+from app.database import Base
+from app.models import BrandAsset, Industry, Platform, ProductionTask
+from app.routers.production import (
+    _merge_safety_report,
+    _resolve_task_publish_mode,
+    apply_geo_finalize,
+    run_manual_quality_gate,
+)
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from app.database import Base
-from app.models import Industry, Platform, BrandAsset, ProductionTask
-from app.routers.production import (
-    _resolve_task_publish_mode,
-    run_manual_quality_gate,
-    _merge_safety_report,
-    apply_geo_finalize,
-)
 
 
 @pytest.fixture

@@ -58,7 +58,7 @@
     <div class="card as-section">
       <div class="as-section__head">
         <h2>② 背景内容预览（会注入到提示词的上下文）</h2>
-        <span class="as-mode-tag" :class="modeTagClass(previewMode)">{{ modeLabel(previewMode) }}</span>
+        <span class="as-mode-tag" :class="modeTagClass(previewMode)">{{ modeLabel(previewMode, modes) }}</span>
       </div>
       <div class="as-ctx">
         <div class="as-ctx__block">
@@ -197,7 +197,7 @@
         <div v-for="s in strategies" :key="s.id" class="ps-card">
           <div class="ps-card__head">
             <span class="ps-card__name">{{ s.platform_name }}</span>
-            <span class="ps-mode" :class="modeTagClass(s.publish_mode)">{{ modeLabel(s.publish_mode) }}</span>
+            <span class="ps-mode" :class="modeTagClass(s.publish_mode)">{{ modeLabel(s.publish_mode, modes) }}</span>
             <el-button size="small" text :icon="Edit" @click="openStrategy(s)">编辑</el-button>
           </div>
           <div class="ps-card__body">
@@ -257,6 +257,8 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { SetUp, Check, Refresh, RefreshLeft, DocumentCopy, Edit } from '@element-plus/icons-vue'
 import { automationPromptApi } from '../api'
+import { copyText } from '../utils/clipboard'
+import { modeLabel, modeTagClass } from '../constants/modes'
 
 // ============ 元数据 ============
 const agentMeta = {
@@ -350,12 +352,7 @@ function previewContent(p) {
   return t
 }
 
-function modeTagClass(m) {
-  return { geo: 'm-geo', platform: 'm-platform', green: 'm-green', official: 'm-official' }[m] || 'm-geo'
-}
-function modeLabel(m) {
-  return (modes.value.find(x => x.value === m) || {}).label || m
-}
+
 
 // ============ 加载 ============
 async function loadAll() {
@@ -478,18 +475,7 @@ async function saveAll() {
   finally { savingAll.value = false }
 }
 
-async function copyText(text, label) {
-  if (!text) { ElMessage.warning('没有可复制的内容'); return }
-  try {
-    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text)
-    else {
-      const ta = document.createElement('textarea')
-      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta)
-    }
-    ElMessage.success(`已复制：${label || '内容'}`)
-  } catch (e) { ElMessage.error('复制失败，请手动选择文本复制') }
-}
+// copyText 已抽到 utils/clipboard.js（全站统一实现）
 
 // 切换模式时，预览内容自动刷新（editState 不变）
 watch(previewMode, () => { /* loadContext 已在 radio change 触发 */ })

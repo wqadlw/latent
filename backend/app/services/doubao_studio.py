@@ -30,32 +30,47 @@ import os
 import re
 import threading
 import time
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
+from ..brand_config import BRAND_NAME, REGION
 from ..database import SessionLocal
-from ..brand_config import BRAND_NAME, BRAND_PRODUCT, REGION
 from ..models import (
-    BrowserStudioRun, BrowserStudioStep, PlatformCredential, Platform,
-    BrandAsset, ContentAsset, PublishJob, ProductionTask,
-    Account, Persona, Keyword, KnowledgeItem, TargetPersona, IntentQuestion,
-)
-from ..services.publisher import _browser_launch_kwargs, publisher
-from ..services.prompt_engine import get_brand_policy, get_mode_goal
-from ..services.prompt_engine import build_render_context, _format_brand_info
-from ..services.orchestrator import get_step_defs, run_quality_gate
-from ..services.automation_prompts import (
-    resolve_studio_prompt, resolve_official_mdx_prompt,
+    Account,
+    BrandAsset,
+    BrowserStudioRun,
+    BrowserStudioStep,
+    ContentAsset,
+    IntentQuestion,
+    Keyword,
+    KnowledgeItem,
+    Persona,
+    Platform,
+    PlatformCredential,
+    ProductionTask,
+    PublishJob,
+    TargetPersona,
 )
 from ..routers.publish import _run_publish
-from ..services.generation import (
-    generate_step_text, _parse_geo_finalize, assign_default_prompts, _resolve_llm_config,
+from ..services.automation_prompts import (
+    resolve_official_mdx_prompt,
+    resolve_studio_prompt,
 )
-from ..services.llm_scheduler import scheduler_generate, mock_call, _eligible_configs
-from dataclasses import dataclass, field
+from ..services.generation import (
+    _parse_geo_finalize,
+    _resolve_llm_config,
+    assign_default_prompts,
+    generate_step_text,
+)
+from ..services.llm_scheduler import _eligible_configs, mock_call, scheduler_generate
+from ..services.orchestrator import get_step_defs, run_quality_gate
+from ..services.prompt_engine import _format_brand_info, build_render_context, get_brand_policy
+from ..services.publisher import _browser_launch_kwargs, publisher
+from . import pipeline as pipeline_svc
 
 
 # ============================================================
@@ -1756,7 +1771,7 @@ class DeepSeekEngine(WritingEngine):
         try:
             return self._sched("research", prompt, "clarify", temperature=0.4, thinking=self.PLANNER_THINKING)
         except Exception as e:  # noqa: BLE001
-            raise RuntimeError(f"主编·明晰失败：{e}")
+            raise RuntimeError(f"主编·明晰失败：{e}") from e
 
     def gen_outline(self, briefing: str, clarified: str, ctx: dict) -> tuple:
         planner_system = resolve_studio_prompt(self.db, "PLANNER_SYSTEM", self.mode)
@@ -1766,7 +1781,7 @@ class DeepSeekEngine(WritingEngine):
         try:
             outline = self._sched("research", prompt, "outline", temperature=0.5, thinking=self.PLANNER_THINKING)
         except Exception as e:  # noqa: BLE001
-            raise RuntimeError(f"主编·大纲失败：{e}")
+            raise RuntimeError(f"主编·大纲失败：{e}") from e
         self.task.outline_content = outline
         return "", outline
 
@@ -1790,7 +1805,7 @@ class DeepSeekEngine(WritingEngine):
         try:
             return self._sched("review", prompt, "revise", temperature=0.4, thinking=self.PLANNER_THINKING)
         except Exception as e:  # noqa: BLE001
-            raise RuntimeError(f"主编·整改指令失败：{e}")
+            raise RuntimeError(f"主编·整改指令失败：{e}") from e
 
     # —— 写手（writer，生成模型）——
     def gen_draft(self, outline_text: str, ctx: dict) -> tuple:
@@ -1818,7 +1833,7 @@ class DeepSeekEngine(WritingEngine):
             try:
                 resp = self._sched("writing", mdx_prompt, "geo", temperature=0.5)
             except Exception as e:  # noqa: BLE001
-                raise RuntimeError(f"官网 MDX 生成失败：{e}")
+                raise RuntimeError(f"官网 MDX 生成失败：{e}") from e
             title, mdx = self._extract_mdx(resp, ctx)
             _t, _fn, _imgs = _parse_mdx_meta(mdx, ctx.get("subject", ""), ctx.get("brand_name", ""))
             if not title:
@@ -1911,7 +1926,7 @@ def _parse_mdx_meta(mdx_text: str, subject: str = "", brand: str = "") -> tuple:
         try:
             resp = self.writer_provider.generate(prompt, temperature=0.6)
         except Exception as e:  # noqa: BLE001
-            raise RuntimeError(f"写手·改写失败：{e}")
+            raise RuntimeError(f"写手·改写失败：{e}") from e
         # 注意：最终文章已是「AI 搜索友好的结构化 Markdown」，不再做 strip_markdown
         # （否则标题/列表/加粗会被压平成纯文本），仅抽取 ===FINAL_TITLE/CONTENT=== 契约。
         return extract_final(resp)
@@ -2058,7 +2073,21 @@ def orchestrate_run(run_id: int) -> None:
         s_review = _get_step(steps, "review")
         s_revise = _get_step(steps, "revise")
         s_confirm = _get_step(steps, "confirm")
-        s_publish = _get_step(steps, "publish")
+
+        # —— 阶段 C：按编排规格执行 + 断点续跑 ——
+        # 已完成步骤的产物本来就已经落在 run 的各列上（outline_content / draft_content / …），
+        # 所以「续跑」不需要额外的检查点文件：读回来复用，只跑剩下那一段。
+        spec = pipeline_svc.spec_of(run)
+        plan = pipeline_svc.plan(db, run, spec)
+        enabled = set(plan["enabled"])
+        replay = set(plan["done"])
+        if replay:
+            _run_log(db, run, "断点续跑：复用已完成 %d/%d 步（%s），从「%s」继续"
+                              % (len(replay), plan["total"], "、".join(plan["done"]),
+                                 plan["next_key"]))
+        if plan["disabled"]:
+            _run_log(db, run, "编排规格已关闭步骤：%s" % "、".join(plan["disabled"]))
+        artifacts = pipeline_svc.hydrate(run)
 
         engine = get_engine(run, db)
         ctx = build_studio_context(db, run)
@@ -2068,6 +2097,15 @@ def orchestrate_run(run_id: int) -> None:
             mode=resolve_run_publish_mode(run, db),
             output_format=resolve_run_output_format(run, db),
         )
+        # 续跑时先把已有产物装回上下文（本次真正执行的步骤会覆盖它们）
+        sc.clarified = artifacts["clarified"]
+        sc.outline = artifacts["outline"]
+        sc.draft = artifacts["draft"]
+        sc.polished = artifacts["polished"]
+        sc.final_title = artifacts["final_title"]
+        sc.final_content = artifacts["final_content"]
+        sc.geo_score = artifacts["geo_score"]
+        sc.issues = list(artifacts["issues"])
         briefing = format_briefing(ctx, run)
 
         # —— 步骤①：连接引擎（系统）——
@@ -2091,6 +2129,14 @@ def orchestrate_run(run_id: int) -> None:
                            "writer_model": writer_model, "msg": msg},
                    line=f"引擎就绪（{engine.engine_kind}）｜主编：{planner_model}｜写手：{writer_model}")
         _run_log(db, run, "步骤①完成：引擎就绪（%s）" % engine.engine_kind)
+
+        # 引擎代理：接管「这一步到底要不要真的调用模型」——
+        # 已完成的步骤直接回放产物（断点续跑），被规格关闭的步骤原样透传。
+        # 必须放在步骤①之后：上面可能发生过「DeepSeek 未配置 → 回退模拟引擎」的替换。
+        engine = pipeline_svc.ReplayEngine(
+            engine, hydrated=artifacts, replay=replay, enabled=enabled,
+            note=lambda m: _run_log(db, run, m),
+        )
 
         # —— 步骤①b：主编·明晰选题（创作简报）——
         _step_start(db, run, s_clarify, "主编(规划师)明晰选题…")
@@ -2212,9 +2258,11 @@ def orchestrate_run(run_id: int) -> None:
                         f"GEO评分={review.get('geo_score')}（{'达标' if _passed else '未达标'}）")
         _run_log(db, run, "步骤⑥完成：主编评审 + 平台过审 + GEO 评分")
 
-        # —— 步骤⑦：闭环整改（主编指令 → 写手改写，每轮双角色全程可见），最多 3 轮 ——
-        MAX_ROUNDS = 3
-        rounds = []
+        # —— 步骤⑦：闭环整改（主编指令 → 写手改写，每轮双角色全程可见），最多 N 轮 ——
+        # 轮数由编排规格决定（批量生产时常用 1 轮换取 token 成本）。
+        # 续跑时保留上一轮的整改记录，否则「重跑一次就丢掉历史轮次」会让复盘无从下手。
+        MAX_ROUNDS = int(spec.get("max_revise_rounds", 3))
+        rounds = list(artifacts["rounds"]) if "revise" in replay else []
         r = 0
         while (not _passed) and r < MAX_ROUNDS:
             issues = sc.issues
@@ -2291,6 +2339,10 @@ def orchestrate_run(run_id: int) -> None:
         s_confirm.next_action = "在界面点「满意，加入内容中心」存档；或点「发布」触发步骤⑩（发布到平台）"
         s_confirm.response_latency_ms = 0
         db.commit()
+        if "confirm" in replay:
+            # 已确认过的运行不能被降级回「待确认」：续跑只应推进状态，不应回退终态
+            _run_log(db, run, "步骤⑧此前已确认过：保持终态，不重复等待人工确认")
+            return
         run.status = "await_confirm"
         db.commit()
         _run_log(db, run, "步骤⑧待确认：终稿已就绪，等待人工满意确认")
@@ -2318,18 +2370,31 @@ def start_run(run_id: int) -> None:
     t.start()
 
 
-def retry_run(run_id: int) -> None:
-    """重试：豆包阶段无持久会话，重试会重新打开豆包并完整重跑 1-4 步与第 5 步。"""
+def retry_run(run_id: int, from_step: Optional[str] = None) -> None:
+    """重试：**从断点续跑**，而不是从步骤①重烧一遍。
+
+    历史实现把所有步骤重置为 pending，于是一次「第⑦步失败」的重试会连带重跑
+    ①b/②/③/④/⑤/⑥ —— 6~10 次 LLM 调用，白烧的钱是实打实的。
+    现在只重置第一个需要真正重新生成的步骤及其之后，之前的产物原样复用。
+
+    ``from_step`` 是逃生口：产物虽然写过了但结果不满意时，用它强制从某一步重做。
+    """
     db = SessionLocal()
     try:
         run = get_auto_run(db, run_id)
         if not run:
             return
-        # 重置步骤状态，保留历史日志供回溯
-        for s in db.query(BrowserStudioStep).filter(BrowserStudioStep.run_id == run_id).all():
-            s.status = "pending"
-            s.last_error = ""
-            s.result_json = ""
+        plan = pipeline_svc.plan(db, run, from_step=from_step)
+        start_at = from_step or plan["next_key"]
+        if start_at:
+            outcome = pipeline_svc.reset_from(db, run, start_at)
+            _run_log(db, run, "重试：从「%s」续跑（复用 %s；重置 %s）"
+                              % (start_at,
+                                 "、".join(outcome["kept"]) or "无",
+                                 "、".join(outcome["cleared"]) or "无"))
+        else:
+            # 所有步骤产物都还在：无需重跑，直接重新走一遍（会全程复用）
+            _run_log(db, run, "重试：所有步骤产物均可用，本次将全程复用已有结果")
         run.status = "created"
         run.error = ""
         db.commit()

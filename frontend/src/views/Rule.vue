@@ -151,6 +151,8 @@ import { useFocusScroll } from '../composables/useFocusScroll'
 import { Plus, Edit, Delete, Upload, TrendCharts, MagicStick, Lock, SetUp, ArrowDown, CopyDocument, Document } from '@element-plus/icons-vue'
 import { useAppStore } from '../store/app'
 import { ruleApi } from '../api'
+import { writeClipboard } from '../utils/clipboard'
+import { downloadText } from '../utils/download'
 import EmptyState from '../components/EmptyState.vue'
 
 const TYPE_META = {
@@ -197,11 +199,10 @@ watch(ripOpen, (v) => {
   if (v && !promptText.value) loadPrompt()
 })
 
-function copyRuleImportPrompt() {
+async function copyRuleImportPrompt() {
   if (!promptText.value) { ElMessage.warning('提示词未加载，请先展开面板'); return }
-  navigator.clipboard.writeText(promptText.value)
-    .then(() => ElMessage.success('已复制提示词，粘贴给任意 AI 即可'))
-    .catch(() => ElMessage.error('复制失败，请手动选择文本复制'))
+  if (await writeClipboard(promptText.value)) ElMessage.success('已复制提示词，粘贴给任意 AI 即可')
+  else ElMessage.error('复制失败，请手动选择文本复制')
 }
 
 async function loadList() {
@@ -311,13 +312,7 @@ function downloadRuleTemplate() {
     '多用短句和口语化表达，避免长难句与从句堆砌',
     '联系方式仅在文末出现一次，不在正文中穿插',
   ]
-  const blob = new Blob([sample.join('\n')], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'rule_import_template.txt'
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadText(sample.join('\n'), 'rule_import_template.txt')
 }
 
 function resetBatch() {

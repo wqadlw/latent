@@ -2,13 +2,13 @@
 """
 PyInstaller 打包配置：把后端 + 前端静态资源打成单个 exe。
 
-生成：backend/dist/PromptMatrix.exe
+生成：backend/dist/Latent.exe
 运行：双击 exe，首次运行时自动将种子数据库还原到 exe 同级目录的 data/database.db，
       后续启动使用已有数据库（数据持久化不会丢失）。浏览器自动打开 http://127.0.0.1:8765
 
 重新打包：
     cd backend
-    venv\\Scripts\\python.exe -m PyInstaller --noconfirm PromptMatrix.spec
+    venv\\Scripts\\python.exe -m PyInstaller --noconfirm Latent.spec
 或直接双击项目根目录的 build_exe.bat
 """
 from PyInstaller.utils.hooks import collect_all, collect_submodules
@@ -51,7 +51,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="PromptMatrix",
+    name="Latent",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

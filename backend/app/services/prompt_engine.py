@@ -2,19 +2,20 @@
 提示词渲染引擎
 把提示词模板里的 {xxx} 占位符替换成真实上下文
 """
-from ..constants import SUPPORTED_RENDER_VARIABLES as BUILTIN_VARIABLES
+import json
+import re
+from datetime import datetime
+
 from ..brand_config import (
-    BRAND_NAME,
     BRAND_FULL_NAME,
+    BRAND_NAME,
     BRAND_PRODUCT,
     OFFICIAL_SITE_URL,
     REGION,
     REGION_CITY,
 )
-import re
-import json
-from datetime import datetime
-from ..utils import to_dict, parse_json, parse_ids, safe_format
+from ..constants import SUPPORTED_RENDER_VARIABLES as BUILTIN_VARIABLES
+from ..utils import parse_ids, safe_format
 
 
 # ============================================================
@@ -138,8 +139,16 @@ def get_mdx_template(mode: str = "official") -> str:
 def build_render_context(db, task, industry_id) -> dict:
     """构建提示词渲染上下文"""
     from ..models import (
-        Industry, Platform, Account, Persona, Keyword, KnowledgeItem,
-        BrandAsset, RuleLibrary, TargetPersona, IntentQuestion,
+        Account,
+        BrandAsset,
+        Industry,
+        IntentQuestion,
+        Keyword,
+        KnowledgeItem,
+        Persona,
+        Platform,
+        RuleLibrary,
+        TargetPersona,
     )
 
     industry = db.query(Industry).filter(Industry.id == industry_id).first()

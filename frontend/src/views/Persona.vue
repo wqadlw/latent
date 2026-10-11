@@ -156,7 +156,7 @@
         <template #title>粘贴 JSON 数组，每行一个画像对象（按名称 upsert，已存在则更新）</template>
         <template #default>字段：name（必填）、role_type、description、pain_points、cares_about、decision_weight、icon、color</template>
       </el-alert>
-      <el-input v-model="importText" type="textarea" :rows="11" placeholder='例如：[{"name":"真空产线厂长","role_type":"decision_maker","decision_weight":3,"pain_points":"真空度不稳\n能耗高"}]' />
+      <el-input v-model="importText" type="textarea" :rows="11" placeholder='例如：[{"name":"屏障受损的敏感肌","role_type":"decision_maker","decision_weight":3,"pain_points":"用什么都刺痛\n屏障越修越薄"}]' />
       <template #footer>
         <el-button text @click="downloadTemplate">下载模板</el-button>
         <el-button @click="importDialog = false">取消</el-button>
@@ -201,6 +201,8 @@ import {
 } from '@element-plus/icons-vue'
 import { useAppStore } from '../store/app'
 import { targetPersonaApi } from '../api'
+import { writeClipboard } from '../utils/clipboard'
+import { downloadJson } from '../utils/download'
 import EmptyState from '../components/EmptyState.vue'
 
 const router = useRouter()
@@ -320,13 +322,11 @@ const importDialog = ref(false)
 const importText = ref('')
 const importing = ref(false)
 const TEMPLATE = [
-  { name: '真空产线厂长', role_type: 'decision_maker', decision_weight: 3, description: '负责真空产线运营投资的决策者', pain_points: '真空度不稳影响良率\n系统能耗高', cares_about: '投资回报与回本周期\n单位能耗' },
-  { name: '真空工艺工程师', role_type: 'technical', decision_weight: 2, description: '负责真空工艺与设备选型', pain_points: '真空度达不到工艺要求\n漏率排查耗时', cares_about: '极限真空度与抽速\n漏率检测' },
+  { name: '屏障受损的敏感肌', role_type: 'decision_maker', decision_weight: 3, description: '长期泛红刺痛、反复踩雷的成分使用者', pain_points: '用什么都刺痛\n屏障越修越薄', cares_about: '成分是否温和\n修护周期与见效节奏' },
+  { name: '成分党进阶用户', role_type: 'technical', decision_weight: 2, description: '会看成分表和浓度、自己查文献的进阶用户', pain_points: '浓度标注不透明\n复配体系说不清', cares_about: '有效浓度与配比\n临床数据与专利' },
 ]
 function downloadTemplate() {
-  const blob = new Blob([JSON.stringify(TEMPLATE, null, 2)], { type: 'application/json' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob); a.download = '客户画像导入模板.json'; a.click(); URL.revokeObjectURL(a.href)
+  downloadJson(TEMPLATE, '客户画像导入模板.json')
 }
 async function importBatch() {
   if (!importText.value.trim()) { ElMessage.warning('请粘贴 JSON 数据'); return }
@@ -360,10 +360,8 @@ async function openAssistantPrompt() {
   finally { promptLoading.value = false }
 }
 async function copyPrompt() {
-  try {
-    await navigator.clipboard.writeText(promptText.value)
-    ElMessage.success('提示词已复制到剪贴板')
-  } catch { ElMessage.error('复制失败，请手动全选复制') }
+  if (await writeClipboard(promptText.value)) ElMessage.success('提示词已复制到剪贴板')
+  else ElMessage.error('复制失败，请手动全选复制')
 }
 
 function gotoQuestions(p) {

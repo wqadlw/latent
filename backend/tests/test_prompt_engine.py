@@ -8,13 +8,12 @@
   - 端到端：默认风格模板渲染后不应残留 {word_min}/{brand_selling_points} 等占位符
 """
 import pytest
+from app.database import Base
+from app.models import BrandAsset, Industry, Platform, ProductionTask
+from app.services import prompt_engine
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from app.database import Base
-from app.models import Industry, Platform, BrandAsset, ProductionTask
-from app.services import prompt_engine
 
 
 @pytest.fixture

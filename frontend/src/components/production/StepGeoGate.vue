@@ -112,7 +112,7 @@
           @update:model-value="setFinalizeImportText"
           type="textarea"
           :rows="10"
-          placeholder="粘贴 AI 返回的结构化结果，例如：&#10;## 优化后标题&#10;真空泵选型三大误区…&#10;## 优化后正文&#10;（完整最终正文）&#10;## GEO 评分（0-100）&#10;86&#10;## 优化建议&#10;可补充的案例…"
+          placeholder="粘贴 AI 返回的结构化结果，例如：&#10;## 优化后标题&#10;敏感肌修护三大误区…&#10;## 优化后正文&#10;（完整最终正文）&#10;## GEO 评分（0-100）&#10;86&#10;## 优化建议&#10;可补充的案例…"
         />
         <div class="geo-import__actions">
           <el-button type="success" :icon="Upload" @click="runGeoFinalize" :loading="finalizing" :disabled="!finalizeImportText.trim()">导入并生成最终发布稿</el-button>

@@ -5,6 +5,7 @@ import {
   MagicStick, ArrowDown, CopyDocument, Document, Check,
 } from '@element-plus/icons-vue'
 import { productionApi } from '../../../api'
+import { copyText, writeClipboard } from '../../../utils/clipboard'
 import StepHeader from '../../../components/production/StepHeader.vue'
 
 // illuState 由父组件持有（属于任务持久化状态），本组件就地修改其字段
@@ -71,14 +72,7 @@ async function saveIllustrations() {
   ElMessage.success('配图方案已保存')
 }
 
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success('已复制：' + text)
-  } catch {
-    ElMessage.error('复制失败，请手动复制')
-  }
-}
+// copyText 已抽到 utils/clipboard.js（全站统一实现）
 
 async function copyItemPrompt(it, mode) {
   let text = ''
@@ -91,10 +85,9 @@ async function copyItemPrompt(it, mode) {
       '\n\n反向词：' + (it.negative_prompt || '') +
       '\n\n建议比例：' + it.aspect_ratio + '（' + it.size + '）'
   }
-  try {
-    await navigator.clipboard.writeText(text)
+  if (await writeClipboard(text)) {
     ElMessage.success(mode === 'network' ? '已复制该图关键字' : '已复制该图提示词，可粘贴到生图工具')
-  } catch {
+  } else {
     ElMessage.error('复制失败，请手动选择文本复制')
   }
 }
@@ -105,10 +98,9 @@ async function copyAllIllustration(mode) {
     ? (props.illuState.plan.copy_all_network || '')
     : (props.illuState.plan.copy_all_ai || '')
   if (!text) return
-  try {
-    await navigator.clipboard.writeText(text)
+  if (await writeClipboard(text)) {
     ElMessage.success(mode === 'network' ? '已复制全部图片关键字' : '已复制全部文生图提示词')
-  } catch {
+  } else {
     ElMessage.error('复制失败，请手动选择文本复制')
   }
 }
@@ -130,10 +122,9 @@ async function copyArticleWithMarkers() {
     }
   }
   const text = lines.join('\n\n')
-  try {
-    await navigator.clipboard.writeText(text)
+  if (await writeClipboard(text)) {
     ElMessage.success('已复制带图位标记的成品文章，可回填发布（把 [配图] 替换为实际图片）')
-  } catch {
+  } else {
     ElMessage.error('复制失败，请手动复制')
   }
 }

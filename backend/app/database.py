@@ -5,17 +5,18 @@ SQLite 单文件存储，零安装零服务
 import os
 import shutil
 from datetime import datetime
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, declarative_base
 
-from .paths import app_dir, resource_dir, _is_frozen
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+from .paths import _is_frozen, app_dir, resource_dir
 
 # 可写数据目录：源码模式=backend/data；打包 exe 模式=exe 同级 data（持久化，不随临时目录丢失）
 BASE_DIR = app_dir()
 DATA_DIR = os.path.join(BASE_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
-DB_PATH = os.path.join(DATA_DIR, "database.db")
+DB_PATH = os.environ.get("APP_DB_PATH") or os.path.join(DATA_DIR, "database.db")
 
 # ---- 种子数据库还原：首次运行时从 exe 内提取 ----
 if _is_frozen() and not os.path.exists(DB_PATH):

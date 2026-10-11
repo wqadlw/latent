@@ -5,17 +5,20 @@
 只验证「综合闸门如何按发布模式组合」这一编排逻辑（即原 _run_review 的收敛点），
 不依赖规则引擎内部评分，保证稳定可重复。
 """
-import sys
 import os
+import sys
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.services.orchestrator import (  # noqa: E402
-    get_step_defs, run_quality_gate, STEP_PROMPT_KEYS, ROLE_BY_STEP,
-)
-from app.services.llm_scheduler import ROLE_BY_STEP as SCHEDULER_ROLE_BY_STEP  # noqa: E402
 from app.routers.automation_prompts import workflow_meta  # noqa: E402
+from app.services.llm_scheduler import ROLE_BY_STEP as SCHEDULER_ROLE_BY_STEP  # noqa: E402
+from app.services.orchestrator import (  # noqa: E402
+    ROLE_BY_STEP,
+    STEP_PROMPT_KEYS,
+    get_step_defs,
+    run_quality_gate,
+)
 
 
 # ---- 1) 步骤注册表 ----------------------------------------------------------

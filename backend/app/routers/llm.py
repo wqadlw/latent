@@ -7,15 +7,16 @@ LLM 设置与生成路由
 与"手动复制提示词给 AI → 粘贴结果回系统"模式并存：本路由只负责"配置 + 调用"，
 绝不强制替代人工审阅。生成的文本由前端展示，用户确认后再写回生产任务字段。
 """
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from ..database import get_db, now
-from ..models import LlmConfig, Industry
+from ..models import Industry, LlmConfig
+from ..services.llm import PROVIDER_CHOICES, LLMError, generate_with_config, get_provider
 from ..utils import to_dict
-from ..services.llm import get_provider, generate_with_config, LLMError, PROVIDER_CHOICES
 
 router = APIRouter(prefix="/api/llm", tags=["LLM 设置"])
 

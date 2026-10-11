@@ -1,6 +1,6 @@
 {
-  "name": "prompt-matrix-pro-frontend",
-  "version": "2.0.0",
+  "name": "ai-content-matrix-frontend",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "smoke": "node scripts/smoke.mjs",
+    "typecheck": "vue-tsc --noEmit",
+    "audit:tokens": "node scripts/audit-css-tokens.mjs",
     "test:backend": "node scripts/test-backend.mjs",
     "build:check": "node scripts/test-backend.mjs && vite build && node scripts/smoke.mjs",
     "test:frontend": "node scripts/component-test.mjs",
@@ -18,12 +20,14 @@
     "axios": "^1.7.0",
     "element-plus": "^2.8.0",
     "pinia": "^2.2.0",
-    "playwright-core": "^1.61.1",
     "vue": "^3.5.0",
     "vue-router": "^4.4.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.0",
-    "vite": "^5.4.0"
+    "playwright-core": "^1.61.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.0",
+    "vue-tsc": "^3.3.13"
   }
 }

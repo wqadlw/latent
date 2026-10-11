@@ -15,14 +15,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
+from app.database import Base
+from app.models import BrandAsset, Industry, ProductionTask
+from app.routers.browser_studio import precheck_run
 from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from app.database import Base
-from app.models import BrandAsset, Industry, ProductionTask
-from app.routers.browser_studio import precheck_run
 
 
 @pytest.fixture

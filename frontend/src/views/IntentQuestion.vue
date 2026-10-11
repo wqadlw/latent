@@ -39,144 +39,148 @@
       </div>
     </section>
 
-    <div class="iq-body">
-      <!-- 左侧：按画像分组 -->
-      <aside class="iq-side">
-        <header class="iq-side__head">
-          <span class="iq-side__title"><el-icon><User /></el-icon> 按画像分组</span>
-        </header>
-        <div class="iq-side__list">
-          <button class="gitem" :class="{ active: activePersona === null }" @click="activePersona = null">
-            <span class="gitem__icon" style="color:#6366f1"><el-icon><Aim /></el-icon></span>
-            <span class="gitem__main"><span class="gitem__name">全部画像</span></span>
-            <span class="gitem__count">{{ questions.length }}</span>
-          </button>
-          <transition-group name="cat-list" tag="div" class="iq-side__group">
-            <div
-              class="gitem"
-              :class="{ active: activePersona === p.id }"
-              v-for="p in personas"
-              :key="p.id"
-              @click="activePersona = p.id"
-            >
-              <span class="gitem__icon" :style="{ color: p.color || '#6366f1' }"><el-icon><component :is="personaIconOf(p)" /></el-icon></span>
-              <span class="gitem__main">
-                <span class="gitem__name">{{ p.name }}</span>
-                <span class="gitem__sub">{{ roleLabel(p.role_type) }} · {{ p.question_count }} 问</span>
-              </span>
-              <span class="gitem__count">{{ p.question_count }}</span>
-            </div>
-          </transition-group>
-          <button class="gitem" :class="{ active: activePersona === -1 }" @click="activePersona = -1">
-            <span class="gitem__icon" style="color:#94a3b8"><el-icon><Document /></el-icon></span>
-            <span class="gitem__main"><span class="gitem__name">未关联画像</span></span>
-            <span class="gitem__count">{{ unlinkedCount }}</span>
-          </button>
-        </div>
-      </aside>
-
-      <!-- 右侧：问题表 -->
-      <section class="iq-main" v-loading="loading">
-        <header class="iq-main__head">
-          <div class="iq-main__title">
-            <el-icon><ChatDotRound /></el-icon> 意图问题
-            <el-tag size="small" type="info" round>{{ displayQuestions.length }}</el-tag>
-          </div>
-          <div class="iq-main__tools">
-            <el-select v-model="filterCategory" placeholder="全部意图" clearable size="small" style="width: 124px;">
-              <el-option label="选型" value="selection" />
-              <el-option label="成本" value="cost" />
-              <el-option label="集成落地" value="integration" />
-              <el-option label="风险" value="risk" />
-              <el-option label="合规" value="compliance" />
-              <el-option label="其他" value="other" />
-            </el-select>
-            <el-select v-model="filterCoverage" placeholder="全部覆盖" clearable size="small" style="width: 116px;">
-              <el-option label="已覆盖" value="covered" />
-              <el-option label="待覆盖" value="gap" />
-            </el-select>
-            <el-select v-model="sortBy" size="small" style="width: 138px;">
-              <el-option label="按优先级" value="priority" />
-              <el-option label="按意图" value="category" />
-              <el-option label="按问题" value="question" />
-              <el-option label="默认（可拖拽）" value="default" />
-            </el-select>
-            <el-button size="small" :icon="Operation" :type="batchMode ? 'primary' : 'default'" @click="batchMode = !batchMode">
-              {{ batchMode ? '退出批量' : '批量管理' }}
-            </el-button>
-          </div>
-        </header>
-
-        <div class="iq-toolbar">
-          <el-input v-model="qSearch" placeholder="查找问题 / 期望推荐角度..." size="small" :prefix-icon="Search" clearable style="flex: 1;" />
-        </div>
-
-        <div class="qtable" :class="{ batch: batchMode }">
-          <div class="qtable__head">
-            <div class="qc qc--sel" v-if="batchMode">
-              <el-checkbox :model-value="qSelection.length === displayQuestions.length && displayQuestions.length > 0" @change="toggleSelectAll" />
-            </div>
-            <div class="qc qc--q">目标客户会问 AI 的问题</div>
-            <div class="qc qc--cat">意图</div>
-            <div class="qc qc--expect">期望 AI 推荐我们的角度</div>
-            <div class="qc qc--pri">优先级</div>
-            <div class="qc qc--cov">覆盖</div>
-            <div class="qc qc--act">操作</div>
-          </div>
-          <VirtualList
-            class="qtable__body"
-            :items="displayQuestions"
-            :row-height="132"
-            :gap="0"
-            :focus-id="focusId"
-            :get-key="(it) => it.id"
-            #default="{ item, index }"
-          >
-            <div class="qrow" :class="[index % 2 === 1 ? 'striped' : '', 'focus-row-' + item.id]" :data-focus-id="item.id">
-              <div class="qc qc--sel" v-if="batchMode">
-                <el-checkbox :model-value="qSelection.includes(item.id)" @change="() => toggleSelect(item)" />
+    <WorkbenchLayout class="iq-body" aside-width="268px" min-height="540px">
+      <template #aside>
+        <!-- 左侧：按画像分组 -->
+        <aside class="iq-side">
+          <header class="iq-side__head">
+            <span class="iq-side__title"><el-icon><User /></el-icon> 按画像分组</span>
+          </header>
+          <div class="iq-side__list">
+            <button class="gitem" :class="{ active: activePersona === null }" @click="activePersona = null">
+              <span class="gitem__icon" style="color:#6366f1"><el-icon><Aim /></el-icon></span>
+              <span class="gitem__main"><span class="gitem__name">全部画像</span></span>
+              <span class="gitem__count">{{ questions.length }}</span>
+            </button>
+            <transition-group name="cat-list" tag="div" class="iq-side__group">
+              <div
+                class="gitem"
+                :class="{ active: activePersona === p.id }"
+                v-for="p in personas"
+                :key="p.id"
+                @click="activePersona = p.id"
+              >
+                <span class="gitem__icon" :style="{ color: p.color || '#6366f1' }"><el-icon><component :is="personaIconOf(p)" /></el-icon></span>
+                <span class="gitem__main">
+                  <span class="gitem__name">{{ p.name }}</span>
+                  <span class="gitem__sub">{{ roleLabel(p.role_type) }} · {{ p.question_count }} 问</span>
+                </span>
+                <span class="gitem__count">{{ p.question_count }}</span>
               </div>
-              <div class="qc qc--q">
-                <div class="qrow__q">{{ item.question }}</div>
-                <div class="qrow__tags">
-                  <span v-if="item.persona_name" class="tag tag--persona">{{ item.persona_name }}</span>
-                  <span class="tag tag--src">{{ sourceLabel(item.source) }}</span>
+            </transition-group>
+            <button class="gitem" :class="{ active: activePersona === -1 }" @click="activePersona = -1">
+              <span class="gitem__icon" style="color:#94a3b8"><el-icon><Document /></el-icon></span>
+              <span class="gitem__main"><span class="gitem__name">未关联画像</span></span>
+              <span class="gitem__count">{{ unlinkedCount }}</span>
+            </button>
+          </div>
+        </aside>
+      </template>
+
+      <template #main>
+        <!-- 右侧：问题表 -->
+        <section class="iq-main" v-loading="loading">
+          <header class="iq-main__head">
+            <div class="iq-main__title">
+              <el-icon><ChatDotRound /></el-icon> 意图问题
+              <el-tag size="small" type="info" round>{{ displayQuestions.length }}</el-tag>
+            </div>
+            <div class="iq-main__tools">
+              <el-select v-model="filterCategory" placeholder="全部意图" clearable size="small" style="width: 124px;">
+                <el-option label="选型" value="selection" />
+                <el-option label="成本" value="cost" />
+                <el-option label="集成落地" value="integration" />
+                <el-option label="风险" value="risk" />
+                <el-option label="合规" value="compliance" />
+                <el-option label="其他" value="other" />
+              </el-select>
+              <el-select v-model="filterCoverage" placeholder="全部覆盖" clearable size="small" style="width: 116px;">
+                <el-option label="已覆盖" value="covered" />
+                <el-option label="待覆盖" value="gap" />
+              </el-select>
+              <el-select v-model="sortBy" size="small" style="width: 138px;">
+                <el-option label="按优先级" value="priority" />
+                <el-option label="按意图" value="category" />
+                <el-option label="按问题" value="question" />
+                <el-option label="默认（可拖拽）" value="default" />
+              </el-select>
+              <el-button size="small" :icon="Operation" :type="batchMode ? 'primary' : 'default'" @click="batchMode = !batchMode">
+                {{ batchMode ? '退出批量' : '批量管理' }}
+              </el-button>
+            </div>
+          </header>
+
+          <div class="iq-toolbar">
+            <el-input v-model="qSearch" placeholder="查找问题 / 期望推荐角度..." size="small" :prefix-icon="Search" clearable style="flex: 1;" />
+          </div>
+
+          <div class="qtable" :class="{ batch: batchMode }">
+            <div class="qtable__head">
+              <div class="qc qc--sel" v-if="batchMode">
+                <el-checkbox :model-value="qSelection.length === displayQuestions.length && displayQuestions.length > 0" @change="toggleSelectAll" />
+              </div>
+              <div class="qc qc--q">目标客户会问 AI 的问题</div>
+              <div class="qc qc--cat">意图</div>
+              <div class="qc qc--expect">期望 AI 推荐我们的角度</div>
+              <div class="qc qc--pri">优先级</div>
+              <div class="qc qc--cov">覆盖</div>
+              <div class="qc qc--act">操作</div>
+            </div>
+            <VirtualList
+              class="qtable__body"
+              :items="displayQuestions"
+              :row-height="132"
+              :gap="0"
+              :focus-id="focusId"
+              :get-key="(it) => it.id"
+              #default="{ item, index }"
+            >
+              <div class="qrow" :class="[index % 2 === 1 ? 'striped' : '', 'focus-row-' + item.id]" :data-focus-id="item.id">
+                <div class="qc qc--sel" v-if="batchMode">
+                  <el-checkbox :model-value="qSelection.includes(item.id)" @change="() => toggleSelect(item)" />
+                </div>
+                <div class="qc qc--q">
+                  <div class="qrow__q">{{ item.question }}</div>
+                  <div class="qrow__tags">
+                    <span v-if="item.persona_name" class="tag tag--persona">{{ item.persona_name }}</span>
+                    <span class="tag tag--src">{{ sourceLabel(item.source) }}</span>
+                  </div>
+                </div>
+                <div class="qc qc--cat">
+                  <el-tag size="small" :type="catColor(item.intent_category)" effect="light">{{ catLabel(item.intent_category) }}</el-tag>
+                </div>
+                <div class="qc qc--expect">{{ item.expected_recommendation || '—' }}</div>
+                <div class="qc qc--pri"><el-rate :model-value="item.priority" disabled size="small" /></div>
+                <div class="qc qc--cov">
+                  <el-tag size="small" :type="item.coverage_status === 'covered' ? 'success' : 'warning'" effect="light" class="cov" @click="toggleCoverage(item)" title="点击切换覆盖状态">
+                    {{ item.coverage_status === 'covered' ? '已覆盖' : '待覆盖' }}
+                  </el-tag>
+                </div>
+                <div class="qc qc--act">
+                  <el-button text size="small" :icon="Edit" @click="openEdit(item)">编辑</el-button>
+                  <el-button text size="small" type="danger" :icon="Delete" @click="remove(item)">删除</el-button>
                 </div>
               </div>
-              <div class="qc qc--cat">
-                <el-tag size="small" :type="catColor(item.intent_category)" effect="light">{{ catLabel(item.intent_category) }}</el-tag>
-              </div>
-              <div class="qc qc--expect">{{ item.expected_recommendation || '—' }}</div>
-              <div class="qc qc--pri"><el-rate :model-value="item.priority" disabled size="small" /></div>
-              <div class="qc qc--cov">
-                <el-tag size="small" :type="item.coverage_status === 'covered' ? 'success' : 'warning'" effect="light" class="cov" @click="toggleCoverage(item)" title="点击切换覆盖状态">
-                  {{ item.coverage_status === 'covered' ? '已覆盖' : '待覆盖' }}
-                </el-tag>
-              </div>
-              <div class="qc qc--act">
-                <el-button text size="small" :icon="Edit" @click="openEdit(item)">编辑</el-button>
-                <el-button text size="small" type="danger" :icon="Delete" @click="remove(item)">删除</el-button>
-              </div>
-            </div>
-          </VirtualList>
-        </div>
+            </VirtualList>
+          </div>
 
-        <div v-if="batchMode && qSelection.length" class="iq-batchbar">
-          <span class="iq-batchbar__count">已选 <b>{{ qSelection.length }}</b> 个</span>
-          <el-button size="small" type="danger" :icon="Delete" :loading="batchSubmitting" @click="onBatchDelete">删除</el-button>
-          <el-button size="small" @click="clearSelection">取消选择</el-button>
-        </div>
+          <div v-if="batchMode && qSelection.length" class="iq-batchbar">
+            <span class="iq-batchbar__count">已选 <b>{{ qSelection.length }}</b> 个</span>
+            <el-button size="small" type="danger" :icon="Delete" :loading="batchSubmitting" @click="onBatchDelete">删除</el-button>
+            <el-button size="small" @click="clearSelection">取消选择</el-button>
+          </div>
 
-        <EmptyState v-if="!loading && displayQuestions.length === 0" title="暂无意图问题" size="small" icon="Aim"
-          hint="点右上角「新建意图问题」，或「预置默认」一键生成三类画像的典型问题。" />
-      </section>
-    </div>
+          <EmptyState v-if="!loading && displayQuestions.length === 0" title="暂无意图问题" size="small" icon="Aim"
+            hint="点右上角「新建意图问题」，或「预置默认」一键生成三类画像的典型问题。" />
+        </section>
+      </template>
+    </WorkbenchLayout>
 
     <!-- 新建/编辑弹窗 -->
     <el-dialog v-model="dialog" :title="editing ? '编辑意图问题' : '新建意图问题'" width="640px">
       <el-form :model="form" label-width="96px">
         <el-form-item label="目标客户问题">
-          <el-input v-model="form.question" type="textarea" :rows="3" placeholder="客户会原话问 AI 的问题，如：我们工厂想上真空产线大概要花多少钱？" />
+          <el-input v-model="form.question" type="textarea" :rows="3" placeholder="客户会原话问 AI 的问题，如：敏感肌泛红刺痛该用什么面霜？" />
         </el-form-item>
         <el-form-item label="关联画像">
           <el-select v-model="form.persona_id" placeholder="未关联" clearable style="width: 100%;">
@@ -226,7 +230,7 @@
         <template #title>粘贴 JSON 数组，每行一个问题对象（按问题原文 upsert）</template>
         <template #default>字段：question（必填）、persona_name（关联画像名）、intent_category、expected_recommendation、priority、coverage_status、source</template>
       </el-alert>
-      <el-input v-model="importText" type="textarea" :rows="11" placeholder='例如：[{"question":"真空泵怎么选型？","persona_name":"真空工艺工程师","intent_category":"selection","expected_recommendation":"给出选型 5 问并带出我方优势"}]' />
+      <el-input v-model="importText" type="textarea" :rows="11" placeholder='例如：[{"question":"敏感肌该怎么修护屏障？","persona_name":"屏障受损的敏感肌","intent_category":"selection","expected_recommendation":"给出修护 3 步并带出我方优势"}]' />
       <template #footer>
         <el-button text @click="downloadTemplate">下载模板</el-button>
         <el-button @click="importDialog = false">取消</el-button>
@@ -267,14 +271,17 @@ import { useRoute } from 'vue-router'
 const pageActionsTarget = inject('pageActionsTarget', null)
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Plus, Edit, Delete, Aim, Search, Operation, Rank, Document, MagicStick, Upload, Download, ChatDotRound, User,
+  Plus, Edit, Delete, Aim, Search, Operation, Document, MagicStick, Upload, ChatDotRound, User,
   OfficeBuilding, Cpu, ShoppingCart, Avatar, UserFilled,
 } from '@element-plus/icons-vue'
 import { useFocusScroll } from '../composables/useFocusScroll'
 import { useAppStore } from '../store/app'
 import { targetPersonaApi, intentQuestionApi } from '../api'
+import { writeClipboard } from '../utils/clipboard'
+import { downloadJson } from '../utils/download'
 import EmptyState from '../components/EmptyState.vue'
 import VirtualList from '../components/VirtualList.vue'
+import WorkbenchLayout from '../components/layout/WorkbenchLayout.vue'
 
 const store = useAppStore()
 const route = useRoute()
@@ -400,13 +407,11 @@ const importDialog = ref(false)
 const importText = ref('')
 const importing = ref(false)
 const TEMPLATE = [
-  { question: '真空泵怎么选型？', persona_name: '真空工艺工程师', intent_category: 'selection', expected_recommendation: '给出选型 5 问并带出我方优势', priority: 3, coverage_status: 'gap', source: 'manual' },
-  { question: '一套真空系统报价大概多少？', persona_name: '真空设备采购', intent_category: 'cost', expected_recommendation: '给出透明报价结构便于比价', priority: 3, coverage_status: 'gap', source: 'manual' },
+  { question: '敏感肌该怎么修护屏障？', persona_name: '屏障受损的敏感肌', intent_category: 'selection', expected_recommendation: '给出修护 3 步并带出我方优势', priority: 3, coverage_status: 'gap', source: 'manual' },
+  { question: '换季泛红用什么面霜比较好？', persona_name: '成分党进阶用户', intent_category: 'cost', expected_recommendation: '给出透明成分结构便于比价', priority: 3, coverage_status: 'gap', source: 'manual' },
 ]
 function downloadTemplate() {
-  const blob = new Blob([JSON.stringify(TEMPLATE, null, 2)], { type: 'application/json' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob); a.download = '意图问题导入模板.json'; a.click(); URL.revokeObjectURL(a.href)
+  downloadJson(TEMPLATE, '意图问题导入模板.json')
 }
 async function importBatch() {
   if (!importText.value.trim()) { ElMessage.warning('请粘贴 JSON 数据'); return }
@@ -444,10 +449,12 @@ async function openAssistantPrompt() {
   finally { promptLoading.value = false }
 }
 async function copyPrompt() {
-  try {
-    await navigator.clipboard.writeText(promptText.value)
+  // 用底层 writeClipboard 保留本处自定义提示语
+  if (await writeClipboard(promptText.value)) {
     ElMessage.success('提示词已复制到剪贴板，可以粘贴到 AI 平台了')
-  } catch { ElMessage.error('复制失败，请手动全选复制') }
+  } else {
+    ElMessage.error('复制失败，请手动全选复制')
+  }
 }
 
 async function load() {
@@ -506,7 +513,8 @@ onMounted(load)
 .cover__pct { font-size: 11px; font-weight: 600; color: var(--accent-emerald, #10b981); white-space: nowrap; }
 
 /* ===== body ===== */
-.iq-body { display: grid; grid-template-columns: 268px 1fr; gap: 16px; min-height: 540px; align-items: stretch; }
+/* .iq-body 的网格定义已收进 WorkbenchLayout（D7-2）：本页左栏 268px、需要 540px 最小高度。
+   类名保留作为验收钩子。 */
 .iq-side, .iq-main {
   background: var(--bg-card); border: 1px solid var(--border-light);
   border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
@@ -585,9 +593,7 @@ onMounted(load)
 .cat-list-move { transition: transform 0.25s ease; }
 .cat-list-leave-active { position: absolute; width: calc(100% - 20px); }
 
-@media (max-width: 1024px) {
-  .iq-body { grid-template-columns: 1fr; }
-}
+/* 窄屏单列由 WorkbenchLayout 统一负责（断点同为 1024px），本页不再重复声明。 */
 @media (max-width: 768px) {
   .hero { flex-direction: column; align-items: flex-start; }
   .hero__metrics { width: 100%; }

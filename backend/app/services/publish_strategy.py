@@ -5,12 +5,11 @@
 - 播种默认策略（按平台 publish_mode：geo/platform/green）；
 - 供「自动化指挥中心 → 各平台合规发布策略」查看/编辑，也供合规闸门与发布器引用。
 """
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 from sqlalchemy.orm import Session
 
 from ..models import Platform, PublishStrategy
-
 
 # 不同发布模式的默认策略模板
 _MODE_TEMPLATE = {

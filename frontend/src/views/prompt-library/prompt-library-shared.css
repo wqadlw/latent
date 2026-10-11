@@ -1,0 +1,316 @@
+/**
+ * 提示词库（PromptLibrary）页面各子组件共用的样式。
+ *
+ * ⚠️ 为什么是**非 scoped** 的独立样式表：本页把「提示词卡片 / 编辑器弹窗 / 查看抽屉」
+ * 拆成了独立组件，而 scoped 样式只作用于子组件的**根元素**——父组件里写的
+ * `.prompt-item__actions`、`.var-panel .var-item` 这类规则，一旦标记搬进子组件就全部失效。
+ * 所以样式必须**跟着标记一起搬出来**，不能靠 `:deep()` 去穿透（那会把父子重新耦合，是假拆分）。
+ *
+ * 与 `views/production/steps/step-shared.css` 同一套路。
+ * 页面自身的骨架（hero / 分类卡 / 列表容器 / 导入横幅）仍留在视图的 scoped 样式里。
+ */
+
+/* ===== hero ===== */
+
+.prompt-item {
+  position: relative;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--cat-color, #94a3b8);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  animation: promptIn 0.34s ease;
+}
+
+.prompt-item:hover {
+  transform: translateY(-3px);
+  border-color: var(--brand-300);
+  border-left-color: var(--cat-color, #94a3b8);
+  box-shadow: var(--shadow-md);
+}
+
+.prompt-item__main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.prompt-item__header { display: flex; align-items: center; gap: 10px; }
+
+.prompt-item__avatar {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+
+.prompt-item__name {
+  flex: 1; min-width: 0;
+  font-size: 15px; font-weight: 700; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.prompt-item__badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.prompt-item__desc {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.6;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.prompt-item__preview {
+  background: var(--slate-50);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.prompt-item__preview-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.prompt-item__preview-text {
+  font-size: 12px; color: var(--text-secondary); line-height: 1.65;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  white-space: pre-wrap; word-break: break-word;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.prompt-item__vars { display: flex; gap: 5px; flex-wrap: wrap; }
+
+.var-tag { font-family: 'SF Mono', monospace; font-size: 11px; }
+
+.var-more { font-size: 11px; color: var(--text-tertiary); }
+
+.prompt-item__meta {
+  display: flex; gap: 16px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap;
+  padding-top: 4px; border-top: 1px dashed var(--border-light);
+}
+
+.prompt-item__meta span { display: flex; align-items: center; gap: 4px; }
+
+.prompt-item__actions {
+  display: flex; flex-direction: row; justify-content: flex-end; gap: 2px; flex-shrink: 0;
+  /* ⚠️ `flex-wrap: wrap` 不能去掉：卡片是 `minmax(300px, 1fr)` 自适应列宽，
+     窄列（1600px 视口下约 317px）装不下 5 个按钮。没有换行时，`justify-content: flex-end`
+     会让整行**向左溢出卡片**——第一个按钮「查看」会跑到侧边栏底下并被其盖住，
+     用户点不到（不是「挤」，是彻底点不到）。这是真实存在过的缺陷，别为了「更整齐」删掉它。 */
+  flex-wrap: wrap; row-gap: 2px;
+  border-top: 1px solid var(--border-light); padding-top: 10px; margin-top: 2px;
+}
+
+.prompt-item__actions .el-button { border-radius: 7px; transition: background 0.15s ease, color 0.15s ease; }
+
+.prompt-item__actions .el-button:not(.el-button--danger):hover { background: var(--brand-50); color: var(--brand-600); }
+
+.prompt-item__actions .el-button.el-button--danger:hover { background: #fef2f2; color: var(--el-color-danger, #f56c6c); }
+
+@keyframes promptIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.prompt-item:nth-child(1) { animation-delay: 0s; }
+
+.prompt-item:nth-child(2) { animation-delay: 0.04s; }
+
+.prompt-item:nth-child(3) { animation-delay: 0.08s; }
+
+.prompt-item:nth-child(4) { animation-delay: 0.12s; }
+
+.prompt-item:nth-child(5) { animation-delay: 0.16s; }
+
+.prompt-item:nth-child(6) { animation-delay: 0.20s; }
+
+.prompt-item:nth-child(7) { animation-delay: 0.24s; }
+
+.prompt-item:nth-child(8) { animation-delay: 0.28s; }
+
+.prompt-item:nth-child(9) { animation-delay: 0.32s; }
+
+.prompt-item:nth-child(10) { animation-delay: 0.36s; }
+
+/* 编辑器分栏布局 */
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  height: 70vh;
+  min-height: 500px;
+}
+
+/* 元提示词助手 */
+
+.meta-prompt-box {
+  background: linear-gradient(135deg, var(--brand-50), var(--slate-50));
+  border: 1px solid var(--brand-200);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.meta-prompt-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; cursor: pointer; user-select: none;
+}
+
+.meta-prompt-head:hover { background: var(--brand-100); }
+
+.mp-icon { color: var(--brand-500); font-size: 16px; }
+
+.mp-title { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+.mp-chevron { color: var(--text-tertiary); }
+
+.mp-chevron.is-open { transform: rotate(180deg); }
+
+.meta-prompt-body { padding: 0 14px 14px; }
+
+.mp-tip { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin: 0 0 10px; }
+
+.mp-textarea :deep(textarea) {
+  font-family: 'SF Mono', 'Monaco', monospace !important;
+  font-size: 12px !important; line-height: 1.6 !important;
+  background: var(--bg-card) !important; color: var(--text-secondary) !important;
+}
+
+.mp-foot { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+
+.mp-hint { font-size: 11px; color: var(--text-tertiary); }
+
+.var-panel {
+  background: var(--slate-50);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-center {
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.var-panel-head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--bg-card);
+}
+
+.vp-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+.var-panel-sub {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light); background: var(--bg-card);
+}
+
+.var-panel-sub .el-input { flex: 1; }
+
+.vp-count { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
+
+.var-panel-body { flex: 1; overflow-y: auto; padding: 8px; }
+
+.var-group { margin-bottom: 16px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-card); }
+
+.var-group--geo { border-color: #14b8a6; box-shadow: 0 0 0 2px color-mix(in srgb, #14b8a6 12%, transparent); }
+
+.var-group-title {
+  font-size: 12px; font-weight: 700; color: var(--text-secondary);
+  margin-bottom: 0; padding: 8px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--slate-50); border-bottom: 1px solid var(--border-light);
+}
+
+.var-group--geo .var-group-title { background: #ecfeff; color: #0e7490; }
+
+.var-group-name { display: inline-flex; align-items: center; gap: 6px; }
+
+.geo-dot { width: 8px; height: 8px; border-radius: 50%; background: #14b8a6; flex-shrink: 0; }
+
+.var-group-items { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
+
+.var-item {
+  position: relative;
+  padding: 8px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.var-item:hover { border-color: var(--brand-400); background: var(--brand-50); }
+
+.var-item.is-used { border-color: var(--brand-500); background: var(--brand-50); }
+
+.var-item-key { font-size: 12px; font-family: 'SF Mono', monospace; color: var(--brand-600); font-weight: 600; }
+
+.var-item-desc { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; line-height: 1.4; }
+
+.var-item-used { position: absolute; top: 6px; right: 6px; color: var(--brand-500); font-size: 14px; }
+
+.custom-var-item { display: flex; gap: 4px; margin-bottom: 4px; }
+
+.empty-hint { font-size: 11px; color: var(--text-tertiary); padding: 8px; text-align: center; }
+
+.editor-wrapper { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+
+.editor-toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 10px; background: var(--slate-50); border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.toolbar-hint { font-size: 11px; color: var(--text-tertiary); flex: 1; }
+
+.prompt-textarea :deep(textarea) {
+  font-family: 'SF Mono', 'Monaco', monospace !important;
+  font-size: 13px !important;
+  line-height: 1.7 !important;
+}
+
+.detected-vars {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 8px 10px; background: #f0fdf4; border-radius: var(--radius-sm);
+  border: 1px solid #bbf7d0;
+}
+
+.dv-label { font-size: 12px; color: #15803d; font-weight: 600; margin-right: 4px; white-space: nowrap; }
+
+.dv-tag { display: flex; align-items: center; gap: 4px; }
+
+.dv-desc { font-size: 11px; opacity: 0.7; }
+
+@media (max-width: 1280px) {
+    .editor-layout { grid-template-columns: 260px 1fr; }
+}
+
+@media (max-width: 1024px) {
+    .editor-layout { grid-template-columns: 1fr; height: auto; }
+    .var-panel { max-height: 300px; }
+}
+
+/* 批量导入提示词板块 */
+
+/* 只读查看抽屉 */
+
+.view-content { display: flex; flex-direction: column; gap: 14px; }
+
+.view-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.view-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+.view-vars { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+
+.view-vars-label { font-size: 12px; color: var(--text-tertiary); }
+
+.view-body-label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-top: 4px; }
+
+.view-body-text {
+  font-family: 'SF Mono', 'Monaco', monospace; font-size: 13px; line-height: 1.7;
+  color: var(--text-secondary); white-space: pre-wrap; word-break: break-word;
+  background: var(--slate-50); border: 1px solid var(--border-light);
+  border-radius: var(--radius-md); padding: 14px 16px;
+  max-height: 60vh; overflow-y: auto;
+}
+
+.view-foot { display: flex; gap: 8px; padding-top: 4px; }

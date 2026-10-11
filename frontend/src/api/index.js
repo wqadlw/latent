@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { clearToken, getToken } from './authToken'
 
 const api = axios.create({
   baseURL: '/api',
@@ -7,6 +8,12 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
+  // 注入登录令牌
+  const token = getToken()
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${token}`
+  }
   if (config.params) {
     const cleaned = {}
     for (const [k, v] of Object.entries(config.params)) {
@@ -19,9 +26,32 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// 401 只处理一次跳转，避免并发请求同时触发多次路由跳转
+let redirectingToLogin = false
+
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    const status = error.response?.status
+
+    if (status === 401) {
+      clearToken()
+      if (!redirectingToLogin) {
+        redirectingToLogin = true
+        ElMessage.warning('登录已过期，请重新登录')
+        // 懒加载 router，避免 api → router → views → api 的循环依赖
+        import('../router').then(({ default: router }) => {
+          const current = router.currentRoute.value
+          if (current.name !== 'Login') {
+            router.replace({ name: 'Login', query: { redirect: current.fullPath } })
+          }
+        }).finally(() => {
+          setTimeout(() => { redirectingToLogin = false }, 800)
+        })
+      }
+      return Promise.reject(error)
+    }
+
     const detail = error.response?.data?.detail
     let msg
     if (detail == null) {
@@ -40,6 +70,23 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+// ========== 认证与用户 ==========
+export const authApi = {
+  login: (data) => api.post('/auth/login', data),
+  me: () => api.get('/auth/me'),
+  changePassword: (data) => api.post('/auth/change-password', data),
+  listUsers: () => api.get('/auth/users'),
+  createUser: (data) => api.post('/auth/users', data),
+  updateUser: (id, data) => api.put(`/auth/users/${id}`, data),
+  deleteUser: (id) => api.delete(`/auth/users/${id}`),
+  operationLogs: (params) => api.get('/auth/operation-logs', { params }),
+}
+
+// ========== 元信息 ==========
+export const metaApi = {
+  get: () => api.get('/meta'),
+}
 
 // ========== 行业 ==========
 export const industryApi = {
@@ -298,6 +345,68 @@ export const geoCanvasApi = {
   get: (industry_id) => api.get('/geo-canvas', { params: { industry_id } }),
 }
 
+// ========== GEO 作战：AI 可见性（自动探测 + 分析看板） ==========
+// 与 geoMonitorApi 的分工：geoMonitor 管「监测任务 + 人工粘贴」，
+// visibility 管「自动探测 + 6 KPI 分析 + 竞品对比」。
+export const visibilityApi = {
+  // 元信息
+  providers: () => api.get('/visibility/providers'),
+  configs: (industry_id) => api.get('/visibility/configs', { params: { industry_id } }),
+
+  // 采集
+  collect: (data) => api.post('/visibility/collect', data),
+  collectMulti: (data) => api.post('/visibility/collect-multi', data),
+  collectForMonitor: (monitor_id, params) =>
+    api.post(`/visibility/monitor/${monitor_id}/collect`, null, { params }),
+
+  // 探测记录
+  runs: (params) => api.get('/visibility/run', { params }),
+  run: (run_id) => api.get(`/visibility/run/${run_id}`),
+  deleteRun: (run_id) => api.delete(`/visibility/run/${run_id}`),
+  sources: (params) => api.get('/visibility/sources', { params }),
+
+  // 分析看板
+  overview: (params) => api.get('/visibility/overview', { params }),
+  kpis: (params) => api.get('/visibility/kpis', { params }),
+  trend: (params) => api.get('/visibility/trend', { params }),
+  sourcePreferences: (params) => api.get('/visibility/source-preferences', { params }),
+  termCloud: (params) => api.get('/visibility/term-cloud', { params }),
+  topicSuggestions: (params) => api.get('/visibility/topic-suggestions', { params }),
+  compare: (params) => api.get('/visibility/compare', { params }),
+
+  // 竞品对比
+  competitors: (industry_id) => api.get('/visibility/competitors', { params: { industry_id } }),
+  saveCompetitor: (data) => api.post('/visibility/competitors', data),
+  deleteCompetitor: (id) => api.delete(`/visibility/competitors/${id}`),
+  seedCompetitors: (industry_id) =>
+    api.post('/visibility/competitors/seed', null, { params: { industry_id } }),
+  detectCompetitors: (run_id) => api.post(`/visibility/competitors/detect/${run_id}`),
+  competitorBoard: (params) => api.get('/visibility/competitors/board', { params }),
+}
+
+// ========== GEO 作战：收录观测 + 归因闭环 ==========
+// 抓取侧（bots/hit/stats/uncovered/trend）是全局观测；
+// 闭环侧（funnel/attribution/journey/recycle/loop-*）按行业隔离，
+// 把 crawler_hit 与 geo_visibility_source 接起来。
+export const crawlerApi = {
+  bots: () => api.get('/crawler/bots'),
+  hits: (params) => api.get('/crawler/hit', { params }),
+  stats: (days) => api.get('/crawler/stats', { params: { days } }),
+  uncovered: (days) => api.get('/crawler/uncovered', { params: { days } }),
+  trend: (days) => api.get('/crawler/trend', { params: { days } }),
+  importLog: (data) => api.post('/crawler/import-log', data),
+  clearHits: (before_days) => api.delete('/crawler/hit', { params: { before_days } }),
+  siteIndex: (site) => api.get('/site/index', { params: { site } }),
+
+  // 归因闭环（B4）
+  loopOverview: (params) => api.get('/crawler/loop-overview', { params }),
+  funnel: (params) => api.get('/crawler/funnel', { params }),
+  attribution: (params) => api.get('/crawler/attribution', { params }),
+  journey: (params) => api.get('/crawler/journey', { params }),
+  recycle: (params) => api.get('/crawler/recycle', { params }),
+  loopHealth: (params) => api.get('/crawler/loop-health', { params }),
+}
+
 // ========== LLM 配置（DeepSeek 可插拔，与手动模式并存） ==========
 export const llmApi = {
   providers: () => api.get('/llm/providers'),
@@ -372,6 +481,35 @@ export const automationPromptApi = {
   // 各平台合规发布策略（格式 / 禁区 / 发布模式 / AI 抓取优化）
   publishStrategies: () => api.get('/automation-prompts/publish-strategies'),
   updateStrategy: (sid, data) => api.put(`/automation-prompts/publish-strategies/${sid}`, data),
+}
+
+// ========== 生产流水线（阶段 C：可编排规格 + 断点续跑 + 有界并发队列 + 批量生产） ==========
+export const pipelineApi = {
+  // 步骤注册表（顺序 / 是否可关 / 产物落点），供编排器渲染
+  steps: (engine_kind) => api.get('/pipeline/steps', { params: { engine_kind } }),
+  // 某条运行的编排规格 + 断点续跑计划
+  spec: (run_id) => api.get('/pipeline/spec', { params: { run_id } }),
+  saveSpec: (data) => api.put('/pipeline/spec', data),
+
+  // 断点续跑：默认从第一个未完成步骤继续；from_step 可强制从某步重做
+  resume: (run_id, data) => api.post(`/pipeline/run/${run_id}/resume`, data || {}),
+  enqueue: (run_id, data) => api.post(`/pipeline/run/${run_id}/enqueue`, data || {}),
+  runQueue: (run_id) => api.get(`/pipeline/run/${run_id}/queue`),
+
+  // 队列运维
+  queue: (params) => api.get('/pipeline/queue', { params }),
+  queueStats: () => api.get('/pipeline/queue/stats'),
+  cancelJob: (job_id) => api.post(`/pipeline/queue/${job_id}/cancel`),
+  retryJob: (job_id) => api.post(`/pipeline/queue/${job_id}/retry`),
+  retryFailed: (params) => api.post('/pipeline/queue/retry-failed', null, { params }),
+  reap: () => api.post('/pipeline/queue/reap'),
+
+  // 批量生产
+  batchPreview: (data) => api.post('/pipeline/batch/preview', data),
+  createBatch: (data) => api.post('/pipeline/batch', data),
+  batches: (params) => api.get('/pipeline/batches', { params }),
+  batchDetail: (batch_id) => api.get(`/pipeline/batches/${batch_id}`),
+  requeueBatch: (batch_id, data) => api.post(`/pipeline/batches/${batch_id}/requeue`, data || {}),
 }
 
 export default api

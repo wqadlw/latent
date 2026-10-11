@@ -16,11 +16,11 @@ scheduler / generation 仍由各引擎自行负责），也不改变任何前端
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from ..services.rule_checker import run_full_check, check_platform_compliance
-from ..services.geo_score import compute_geo_score
 from ..brand_config import BRAND_ALIASES
+from ..services.geo_score import compute_geo_score
+from ..services.rule_checker import check_platform_compliance, run_full_check
 
 
 # ============================================================
@@ -77,7 +77,7 @@ STEP_PROMPT_KEYS: Dict[str, str] = {
 # 单一真源：以 llm_scheduler.ROLE_BY_STEP（真实调度边界，含 apply_revision）为基底派生，
 # 再补「无需 AI 调用的步骤」display 角色（confirm=human / publish=system）供前端可视化。
 # 这样后端只保留一份角色映射，彻底消除 orchestrator 与 llm_scheduler 两份漂移。
-from ..services.llm_scheduler import ROLE_BY_STEP as _SCHEDULER_ROLE_BY_STEP
+from ..services.llm_scheduler import ROLE_BY_STEP as _SCHEDULER_ROLE_BY_STEP  # noqa: E402
 
 ROLE_BY_STEP: Dict[str, str] = {
     **_SCHEDULER_ROLE_BY_STEP,
@@ -129,8 +129,10 @@ def run_quality_gate(
     mode: str = "geo",
     output_format: Optional[str] = None,
     title: str = "",
+    db: Any = None,
+    industry_id: int = 0,
 ) -> Dict[str, Any]:
-    """综合质量闸门：平台合规 + GEO 评分 → gate_pass。
+    """综合质量闸门：平台合规 + GEO 评分 + 断言证据 → 三态决策。
 
     参数：
       - text           : 待评审终稿
@@ -138,6 +140,8 @@ def run_quality_gate(
       - mode           : 已解析的发布模式 geo / platform / green / official
       - output_format  : 已解析的输出格式 markdown / mdx（mdx 视为官网模式）
       - title          : 文章标题（软文特征检测用）
+      - db / industry_id : 传入后启用**断言证据核对**（v3.1 新增），
+                           并对无依据的数据/资质/绝对化表述做硬闸门
 
     返回与历史 _run_review 完全一致的结构：
       - compliance_pass / compliance
@@ -145,6 +149,7 @@ def run_quality_gate(
       - geo_score / geo
       - gate_pass（综合闸门）
       - issues（合并的可执行问题清单，带 [平台合规·A级] / [GEO优化·B级] 前缀）
+      - decision / decision_label / hard_blockers / unverified_claims（v3.1 新增三态裁决）
     """
     ctx = ctx or {}
     # 1) 平台合规自检
@@ -204,7 +209,8 @@ def run_quality_gate(
             issues.append(f"[平台合规·A级] {i}")
     for i in (geo.get("issues") or []):
         issues.append(f"[GEO优化·B级] {i}")
-    return {
+
+    result: Dict[str, Any] = {
         "compliance_pass": compliance_pass,
         "compliance": compliance,
         "platform_compliance": platform_compliance,
@@ -213,3 +219,41 @@ def run_quality_gate(
         "gate_pass": gate_pass,
         "issues": issues,
     }
+
+    # 5) v3.1：断言证据核对 + 三态裁决（需要 db）
+    if db is not None:
+        try:
+            from . import claim_extractor, quality_evidence
+            from .quality_gate import verdict_from_results
+
+            claims = claim_extractor.extract_claims(text)
+            verified = quality_evidence.verify_claims(db, claims, industry_id)
+            verdict = verdict_from_results(
+                rule=compliance,
+                geo=geo,
+                platform_check=platform_compliance or {"mode": mode, "issues": [], "soft_issues": []},
+                verified=verified,
+            )
+            # 无依据断言过多时，把 gate_pass 一并拉低，保证旧字段与新决策不矛盾
+            if verdict["decision"] == "blocked":
+                gate_pass = False
+            result.update({
+                "decision": verdict["decision"],
+                "decision_label": verdict["decision_label"],
+                "score": verdict["score"],
+                "hard_blockers": verdict["hard_blockers"],
+                "soft_issues": verdict["soft_issues"],
+                "unverified_claims": verdict["unverified_claims"],
+                "verified_claims": verdict["verified_claims"],
+                "evidence_coverage": verdict["evidence_coverage"],
+                "claim_summary": verdict["claim_summary"],
+                "gate_pass": gate_pass,
+            })
+            for b in verdict["hard_blockers"]:
+                issues.append(f"[可信度·A级] {b['message']}")
+            for u in verdict["unverified_claims"]:
+                issues.append(f"[可信度·B级] 无依据表述：{u.get('text')} —— {u.get('note')}")
+        except Exception as e:  # noqa: BLE001
+            result["evidence_error"] = f"断言证据核对跳过：{e}"
+
+    return result

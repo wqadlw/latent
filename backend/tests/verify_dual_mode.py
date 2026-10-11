@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 """双模式验证：证明 platform 模式模拟成稿通过平台合规闸门（无搜狐式拒稿特征）。"""
-import sys, os, re
+import os
+import re
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.services.doubao_studio import MockDoubaoAdapter, get_studio_prompts, extract_final
-from app.services.rule_checker import check_platform_compliance, SELF_PRAISE_WORDS, END_PROMOTION_WORDS
+from app.services.doubao_studio import MockDoubaoAdapter, extract_final, get_studio_prompts
+from app.services.rule_checker import check_platform_compliance
 
 BRAND = "示例品牌科技有限公司"
 SUBJECT = "食品厂真空系统改造避坑指南"

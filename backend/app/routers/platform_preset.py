@@ -1,10 +1,10 @@
 """平台预设路由（含 7 大内容平台 + 官网/自建站）"""
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import Platform, PLATFORM_PRESETS
+from ..models import PLATFORM_PRESETS, Platform
 from ..services.prompt_engine import OFFICIAL_MDX_PROMPT
-from ..utils import to_dict
 
 router = APIRouter(prefix="/api/platform-presets", tags=["平台预设"])
 

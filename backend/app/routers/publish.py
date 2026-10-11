@@ -21,22 +21,20 @@
 from __future__ import annotations
 
 import json
-import os
 import threading
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import ProductionTask, PlatformCredential, PublishJob
-from ..services.publisher import publisher as _publisher
-from ..services.publisher import PlaywrightCookieCapture
-from ..services.generation import generate_step_text, assign_default_prompts
+from ..models import PlatformCredential, ProductionTask, PublishJob
 from ..routers.production import apply_geo_finalize
-
+from ..services.generation import assign_default_prompts, generate_step_text
+from ..services.publisher import PlaywrightCookieCapture
+from ..services.publisher import publisher as _publisher
 
 router = APIRouter(prefix="/api", tags=["publish"])
 
@@ -286,7 +284,7 @@ def capture_paste(payload: CapturePaste, db: Session = Depends(get_db)):
         try:
             raw = json.loads(raw)
         except Exception:
-            raise HTTPException(400, "cookie 文本不是合法 JSON，请用 Cookie-Editor 的「导出」结果直接粘贴")
+            raise HTTPException(400, "cookie 文本不是合法 JSON，请用 Cookie-Editor 的「导出」结果直接粘贴") from None
     if not isinstance(raw, list) or not raw:
         raise HTTPException(400, "cookie 应为非空数组，请用 Cookie-Editor 的「导出」结果直接粘贴")
     from ..services.publisher import _normalize_pasted_cookies

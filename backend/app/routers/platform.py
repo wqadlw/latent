@@ -1,10 +1,12 @@
 """平台、人设、账号管理路由"""
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import Platform, Persona, Account
+from ..models import Account, Persona, Platform
 from ..utils import to_dict
 
 router = APIRouter(prefix="/api", tags=["平台/人设/账号"])

@@ -1,0 +1,33 @@
+/*
+ * 浏览器工作室 —— 跨子组件复用的样式。
+ *
+ * ⚠️ 这个文件**故意不带 scoped**。
+ *
+ * 原因：Vue 的 scoped 样式只能作用到子组件的**根元素**，够不到子组件内部。
+ * 工作室拆成多个面板后，`.pc-tip` 这类「贴在 el-alert 上、被两个以上面板共用」的类，
+ * 写在任何一个面板的 scoped style 里都够不到别的面板——于是大家各自复制一份，
+ * 迟早改一处漏一处。
+ *
+ * 解法沿用项目已有先例（`views/production/steps/step-shared.css`）：
+ * 跨组件复用的类集中到一张**不带 scoped** 的样式表里，谁需要谁 import。
+ *
+ * ⚠️ 放进来的门槛：**必须真的被 2 个以上组件用到**。
+ * 只被一个组件用的类留在那个组件的 scoped style 里——这里是共享区，不是杂物间。
+ */
+
+/* 风险/结论提示条：预检弹窗与文章改写弹窗共用（贴在 el-alert 上） */
+.pc-tip { margin-top: 12px; }
+
+/*
+ * 模式徽标（.mode-chip）—— 排版 + 配色。
+ *
+ * 用在两处：运行列表的 `.tag-mode`、新建向导平台卡片的 `.pick-mode`。
+ * 合并的理由很具体：两处原本各写一份四色，而 `.pick-mode` 那份**漏了 .m-green**
+ * （`.tag-mode.m-green` 有、`.pick-mode.m-green` 没有）—— 这就是「同一个东西存两份」的必然结果。
+ * 现在配色只有这一份，`.tag-mode` / `.pick-mode` 各自只保留排版差异。
+ */
+.mode-chip { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.mode-chip.m-platform { background: #e0f2fe; color: #0369a1; }
+.mode-chip.m-geo { background: #fef3c7; color: #b45309; }
+.mode-chip.m-green { background: #dcfce7; color: #15803d; }
+.mode-chip.m-official { background: #ede9fe; color: #6d28d9; }

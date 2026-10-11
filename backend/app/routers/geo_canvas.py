@@ -6,11 +6,13 @@
 
 这是展示层聚合，不新增数据表；所有数据来自已有三张表。
 """
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import List
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import TargetPersona, IntentQuestion, BrandAsset
+from ..models import BrandAsset, IntentQuestion, TargetPersona
 from ..utils import to_dict
 
 router = APIRouter(prefix="/api/geo-canvas", tags=["GEO-定位画布"])

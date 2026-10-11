@@ -27,6 +27,24 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import BrowserStudioRun, BrowserStudioStep, PlatformCredential, ProductionTask
+from ..services import pipeline as pipeline_svc
+from ..services import task_queue
+from ..services.doubao_studio import (
+    PLATFORM_PUBLISH_MODE,
+    build_studio_context,
+    confirm_run,
+    format_briefing,
+    get_auto_run,
+    get_studio_prompts,
+    publish_run,
+    resolve_engine_kind,
+    resolve_run_output_format,
+    resolve_run_publish_mode,
+    retry_publish,
+    retry_run,
+    start_run,
+)
+from ..services.publisher import _normalize_pasted_cookies
 
 
 def _parse_json(text: str) -> Any:
@@ -37,13 +55,6 @@ def _parse_json(text: str) -> Any:
         return json.loads(text)
     except Exception:
         return {}
-from ..services.publisher import _normalize_pasted_cookies
-from ..services.doubao_studio import (
-    start_run, retry_run, retry_publish, confirm_run, publish_run,
-    format_briefing, build_studio_context, get_auto_run,
-    SYSTEM_PROMPT, DEEPSEEK_MASTER_PROMPT, resolve_engine_kind, STAGE_PROMPTS,
-    PLANNER_SYSTEM, get_studio_prompts, resolve_run_publish_mode, resolve_run_output_format, PLATFORM_PUBLISH_MODE,
-)
 
 
 router = APIRouter(prefix="/api/browser-studio", tags=["browser-studio"])
@@ -268,7 +279,7 @@ def paste_doubao_credential(payload: DoubaoCredPaste, db: Session = Depends(get_
         try:
             raw = json.loads(raw)
         except Exception:
-            raise HTTPException(400, "cookie 文本不是合法 JSON，请用 Cookie-Editor 的「导出」结果直接粘贴")
+            raise HTTPException(400, "cookie 文本不是合法 JSON，请用 Cookie-Editor 的「导出」结果直接粘贴") from None
     if not isinstance(raw, list) or not raw:
         raise HTTPException(400, "cookie 应为非空数组，请用 Cookie-Editor 的「导出」结果直接粘贴")
     cookies = _normalize_pasted_cookies(raw)
@@ -493,7 +504,7 @@ def precheck_run(run_id: int, db: Session = Depends(get_db)):
         }}
     try:
         ctx = build_studio_context(db, run)
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         # 上下文缺失不阻断预检，仅给品牌名兜底，让合规/软文检测仍可用
         ctx = {"brand_name": (getattr(run, "brand_asset_id", 0) and "")}
         ctx["brand_name"] = ""  # build_studio_context 失败时不注入真实品牌红线字段
@@ -634,18 +645,34 @@ def start_run_endpoint(run_id: int, db: Session = Depends(get_db)):
                    "如需真实浏览器自动化，请在发布中心上传 platform='doubao' 的 cookie 凭证，"
                    "并在新建运行时选择该凭证。").strip()
         db.commit()
-    # DeepSeek 未配置 API 的情况在编排线程内自动回退模拟演示，这里无需特殊处理
+    # DeepSeek 未配置 API 的情况在编排线程内自动回退模拟演示，这里无需特殊处理。
+    #
+    # 阶段 C：队列调度线程在跑时，交互式「开始」也走队列（最高优先级）——
+    # 这样并发上限是全局生效的：人点的那一条不会绕过队列去抢占第 3 个并发额度。
+    # 调度线程关闭时（测试 / APP_PIPELINE_WORKER=0）退回直起线程，行为与历史一致。
+    if task_queue.worker_enabled() and task_queue.dispatcher.status()["running"]:
+        res = task_queue.enqueue(db, run.industry_id, run_id,
+                                 batch_id=run.batch_id or "", priority=1)
+        msg = "已投递到队列（最高优先级）" if res["created"] else "该运行已在队列中"
+        return {"code": 0, "data": {"ok": True, "msg": msg, "job_id": res["job_id"]}}
     start_run(run_id)
     return {"code": 0, "data": {"ok": True, "msg": "已启动"}}
 
 
 @router.post("/{run_id}/retry")
-def retry_run_endpoint(run_id: int, db: Session = Depends(get_db)):
+def retry_run_endpoint(run_id: int, from_step: str = "", db: Session = Depends(get_db)):
+    """重试：从断点续跑（可用 from_step 指定强制重做的起点）。
+
+    阶段 C 起不再从步骤①重跑 —— 已完成的步骤产物会被复用，见 services.pipeline。
+    """
     run = get_auto_run(db, run_id)
     if not run:
         raise HTTPException(404, "运行不存在")
-    retry_run(run_id)
-    return {"code": 0, "data": {"ok": True, "msg": "已重新启动（重跑豆包阶段）"}}
+    if from_step and from_step not in pipeline_svc.STEP_ORDER:
+        raise HTTPException(400, f"未知步骤：{from_step}")
+    retry_run(run_id, from_step=from_step or None)
+    msg = f"已从「{from_step}」重新启动" if from_step else "已从断点续跑（复用已有产物）"
+    return {"code": 0, "data": {"ok": True, "msg": msg}}
 
 
 @router.post("/{run_id}/retry-publish")

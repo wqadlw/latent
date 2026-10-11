@@ -6,13 +6,15 @@
 
 注意：Persona 已被"写作人设"占用，目标客户画像必须用 TargetPersona 避免冲突。
 """
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from pydantic import BaseModel
 import json
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import TargetPersona, IntentQuestion, Industry, BrandAsset
+from ..models import BrandAsset, Industry, IntentQuestion, TargetPersona
 from ..utils import to_dict
 
 router = APIRouter(prefix="/api", tags=["GEO-画像与意图问题库"])
@@ -326,7 +328,7 @@ def import_target_personas(payload: dict, db: Session = Depends(get_db)):
         try:
             data = json.loads(data) if isinstance(data, str) else []
         except Exception:
-            raise HTTPException(400, "data 格式错误，应为 JSON 数组")
+            raise HTTPException(400, "data 格式错误，应为 JSON 数组") from None
     created = updated = 0
     errors = []
     for i, item in enumerate(data):
@@ -391,7 +393,7 @@ def import_intent_questions(payload: dict, db: Session = Depends(get_db)):
         try:
             data = json.loads(data) if isinstance(data, str) else []
         except Exception:
-            raise HTTPException(400, "data 格式错误，应为 JSON 数组")
+            raise HTTPException(400, "data 格式错误，应为 JSON 数组") from None
     persona_map = {}
     for p in db.query(TargetPersona).filter(
         TargetPersona.industry_id == industry_id, TargetPersona.is_deleted == 0
@@ -563,15 +565,82 @@ GENERIC_QUESTIONS = [
 ]
 
 
+# ============================================================
+#  美妆护肤预设（敏感肌修护赛道）
+#  与 B2B 预设的关键差异：决策角色是「消费者」而不是「企业采购」，
+#  意图问题围绕「我这情况能不能用 / 该怎么选」，而不是「投资回报与交付周期」。
+# ============================================================
+BEAUTY_PERSONAS = [
+    {
+        "name": "屏障受损的敏感肌", "role_type": "other", "decision_weight": 3,
+        "icon": "User", "color": "#ec4899",
+        "description": "换季或刷酸后屏障受损的护肤用户。护肤目标是「先不难受」而不是「变好看」，对刺激极度敏感。",
+        "pain_points": "换季必泛红刺痛，用什么都像在踩雷\n护肤品买了一堆，越用皮肤越差\n分不清自己是缺水还是屏障坏了\n刷酸 / 医美后不知道什么能用什么不能用",
+        "cares_about": "成分是否温和、有没有酒精香精\n别人用过的真实反馈而不是广告词\n出问题了怎么补救、多久能好\n有没有可以照着做的简单步骤",
+    },
+    {
+        "name": "成分党进阶用户", "role_type": "technical", "decision_weight": 2,
+        "icon": "Notebook", "color": "#6366f1",
+        "description": "会主动查成分表、看文献的进阶用户。信任建立门槛高但留存好，是最有传播力的内容节点。",
+        "pain_points": "大部分科普只复述营销话术，不讲机理\n只说「含某某成分」却不给浓度区间\n结论绝对化，不提适用边界\n成分表看不懂，不知道哪个才是关键成分",
+        "cares_about": "作用机理讲得清不清楚\n有效浓度区间与实测数据\n成分之间的配伍与冲突\n作者敢不敢说自己产品的局限",
+    },
+    {
+        "name": "医美术后护理人群", "role_type": "other", "decision_weight": 2,
+        "icon": "FirstAidKit", "color": "#0ea5e9",
+        "description": "刚做完光电类项目的用户，处于屏障急性损伤期，护理窗口短、容错率极低。",
+        "pain_points": "医生说别乱用，但没说具体能用什么\n术后一周脸又红又干，不敢洗脸\n怕用错东西影响项目效果\n网上说法互相矛盾，不知道信谁",
+        "cares_about": "术后各阶段的时间线与护理重点\n成分白名单与黑名单\n出现异常反应的判断标准与就医时机\n是否需要停用平时的护肤品",
+    },
+]
+
+BEAUTY_QUESTIONS = [
+    # —— 屏障受损的敏感肌 ——
+    ("屏障受损的敏感肌", "换季脸泛红刺痛，我该先修屏障还是先补水？", "selection",
+     "先讲清「留不住水才是问题」的机理，再给修屏障的具体路径，自然带出脂质复配方案。", 3, "gap", "manual"),
+    ("屏障受损的敏感肌", "敏感肌到底能不能用烟酰胺？", "risk",
+     "给耐受建立方法（低浓度低频次起步）与禁忌情况，避免一刀切结论。", 3, "gap", "manual"),
+    ("屏障受损的敏感肌", "护肤品用了很多种，为什么皮肤反而越来越差？", "risk",
+     "用「叠加带来的是风险累加」讲做减法的必要性，给出精简步骤的方法。", 3, "gap", "manual"),
+    ("屏障受损的敏感肌", "屏障修护一般要多久才能好？", "other",
+     "给出 2–4 周的时间线与阶段性预期，管理期望，避免任何疗效承诺。", 2, "gap", "manual"),
+    # —— 成分党进阶用户 ——
+    ("成分党进阶用户", "神经酰胺 NP 和 AP 到底有什么区别？", "selection",
+     "讲亚型差异与复配比例，体现配方深度，自然带出品牌公开配比的做法。", 3, "gap", "manual"),
+    ("成分党进阶用户", "神经酰胺是不是浓度越高越好？", "selection",
+     "纠正浓度崇拜，说明生理比例复配才是关键。", 3, "gap", "manual"),
+    ("成分党进阶用户", "积雪草和泛醇能互相替代吗？", "selection",
+     "讲清一个管炎症、一个管保湿，不可替代，并给出选择标准。", 2, "gap", "manual"),
+    ("成分党进阶用户", "怎么看成分表判断一个修护产品好不好？", "selection",
+     "给出可操作的判断清单：关键成分、浓度区间、配伍、是否含刺激成分。", 3, "gap", "manual"),
+    # —— 医美术后护理人群 ——
+    ("医美术后护理人群", "医美术后第一周到底能用什么护肤品？", "compliance",
+     "按术后时间线给分阶段护理方案与成分白名单。", 3, "gap", "manual"),
+    ("医美术后护理人群", "术后脸又红又干，是不是正常的？", "risk",
+     "区分正常恢复反应与需要就医的异常信号，明确边界、不越界诊疗。", 3, "gap", "manual"),
+    ("医美术后护理人群", "术后多久能恢复用平时的护肤品？", "other",
+     "给出分阶段恢复顺序与判断标准。", 2, "gap", "manual"),
+]
+
+
 def resolve_industry_preset(industry_name):
     """按行业名称解析对应的默认画像/问题预设。
 
-    命中真空相关关键词（真空 / vacuum / 泵 / pump）用真空领域预设，
-    否则用通用 B2B / 制造业预设。后续可在此按需扩展更多行业预设。
+    判定顺序**先具体后通用**，通用分支必须留在最后兜底：
+
+    - 真空相关（真空 / vacuum / 泵 / pump）→ 真空领域预设
+    - 美妆护肤（美妆 / 护肤 / 化妆品 / 彩妆 / beauty / skincare / cosmetic）→ 美妆预设
+    - 其余 → 通用 B2B / 制造业预设
+
+    新增行业预设：照着加一个 `if any(k in name ...)` 分支即可，
+    并在上面这段注释里补一行说明。
     """
     name = industry_name or ""
     if any(k in name for k in ("真空", "vacuum", "泵", "pump")):
         return DEFAULT_PERSONAS, DEFAULT_QUESTIONS
+    if any(k in name.lower() for k in
+           ("美妆", "护肤", "化妆品", "彩妆", "beauty", "skincare", "cosmetic")):
+        return BEAUTY_PERSONAS, BEAUTY_QUESTIONS
     return GENERIC_PERSONAS, GENERIC_QUESTIONS
 
 

@@ -18,16 +18,15 @@
 - get_scheduler_status(db) -> dict                                      # 三角色配置分配与最近耗时
 - record_call(db, **fields) -> LlmCallLog
 """
-import time
 import random
-from typing import Dict, Any, List, Optional, Tuple
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .llm import get_provider, LLMError, normalize_config
-from ..models import LlmConfig, LlmCallLog
-
+from ..models import LlmCallLog, LlmConfig
+from .llm import LLMError, get_provider
 
 # 角色 -> 步骤映射（用于没有显式 role 时反查，以及策略说明）
 ROLE_BY_STEP = {

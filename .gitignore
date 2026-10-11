@@ -41,6 +41,17 @@ vite.config.js.timestamp-*.mjs
 # 含真实业务数据、LLM API Key、平台登录凭据、用户密码，务必不要提交
 backend/data/
 
+# ---------- 演示数据（截图 / 试用用） ----------
+# 由 backend/scripts/seed_demo.py 灌出的虚构品牌数据集，属可再生的一次性产物。
+# 之所以不提交：它是从开发库 VACUUM 出来的快照再清空，体积大且随时可重建。
+.demo/
+
+# ---------- 环境变量 ----------
+# 含 JWT 签名密钥与加密密钥，泄露等于泄露全部已加密数据
+.env
+.env.local
+*.env.bak
+
 # ---------- 品牌定制配置 ----------
 # 客户部署时填写的真实品牌信息（品牌名/官网/地域），属私有配置，不对外发布。
 # 仓库只保留模板 brand.config.json.example，使用者复制后自行填写。
@@ -60,6 +71,16 @@ docs/系统整体审查_*.md
 
 # ---------- 含真实数据的截图 ----------
 frontend/knowledge-verify.png
+
+# ---------- 内部验收截图 ----------
+# docs/screenshots/ 下 01-09 是 README 用的产品预览图（对着演示库截图），随仓库发布。
+# 其余前缀（B4- / C- / D2-…D7- / geo-visibility- / 品牌-）是各阶段本地验收证据：
+# 对着开发库截图，含内部业务内容与调试标记数据，只在本地留存，不对外发布。
+docs/screenshots/B4-*.png
+docs/screenshots/C-*.png
+docs/screenshots/D[0-9]-*.png
+docs/screenshots/geo-visibility-*.png
+docs/screenshots/品牌-*.png
 
 # ---------- AI 协作目录 ----------
 .workbuddy/

@@ -12,7 +12,6 @@
 from ..models import AutomationPrompt
 from .prompt_engine import get_brand_policy, get_mode_goal
 
-
 # —— 精细化阶段提示词默认正文（含角色设定 / 输出格式约束 / 质量检查点）——
 # 仅作「自动化指挥中心」可编辑底座与后续引擎接入；当前编排已覆盖选题/撰写/审核，
 # 调研与搜索优化为独立可编辑模板，便于按需开启增强。
@@ -102,9 +101,16 @@ PROMPT_META = [
 def seed_automation_prompts(db) -> None:
     """把默认提示词写入 automation_prompt 表（幂等：已存在则跳过，仅补全 default_content）。"""
     from .doubao_studio import (
-        EXPERT_TEAM_DESC, SYSTEM_PROMPT, DEEPSEEK_MASTER_PROMPT,
-        STAGE_PROMPTS, REVISE_PROMPT, PLANNER_SYSTEM, PLANNER_CLARIFY_PROMPT,
-        PLANNER_OUTLINE_PROMPT, PLANNER_REVIEW_PROMPT, PLANNER_DIRECTIVE_PROMPT,
+        DEEPSEEK_MASTER_PROMPT,
+        EXPERT_TEAM_DESC,
+        PLANNER_CLARIFY_PROMPT,
+        PLANNER_DIRECTIVE_PROMPT,
+        PLANNER_OUTLINE_PROMPT,
+        PLANNER_REVIEW_PROMPT,
+        PLANNER_SYSTEM,
+        REVISE_PROMPT,
+        STAGE_PROMPTS,
+        SYSTEM_PROMPT,
         WRITER_APPLY_PROMPT,
     )
     from .prompt_engine import OFFICIAL_MDX_PROMPT
@@ -182,9 +188,16 @@ def _resolve_single(db, key: str, default_text: str, mode: str) -> str:
 def resolve_studio_prompts(mode: str = "geo", db=None) -> dict:
     """返回与 doubao_studio._RAW_PROMPTS 同构的 dict（已注入品牌策略/模式目标/专家团队，并叠加 DB 覆盖）。"""
     from .doubao_studio import (
-        SYSTEM_PROMPT, DEEPSEEK_MASTER_PROMPT, REVISE_PROMPT, STAGE_PROMPTS,
-        PLANNER_SYSTEM, PLANNER_CLARIFY_PROMPT, PLANNER_OUTLINE_PROMPT,
-        PLANNER_REVIEW_PROMPT, PLANNER_DIRECTIVE_PROMPT, WRITER_APPLY_PROMPT,
+        DEEPSEEK_MASTER_PROMPT,
+        PLANNER_CLARIFY_PROMPT,
+        PLANNER_DIRECTIVE_PROMPT,
+        PLANNER_OUTLINE_PROMPT,
+        PLANNER_REVIEW_PROMPT,
+        PLANNER_SYSTEM,
+        REVISE_PROMPT,
+        STAGE_PROMPTS,
+        SYSTEM_PROMPT,
+        WRITER_APPLY_PROMPT,
     )
     stage_keys = ["STAGE_outline", "STAGE_draft", "STAGE_depolish", "STAGE_geo"]
     stage_out = {}
@@ -215,8 +228,12 @@ _DEFAULT_PLANNER = {
 def resolve_studio_prompt(db, key: str, mode: str) -> str:
     """单一提示词解析（供 DeepSeek 引擎中直接引用常量的位置使用）。"""
     from .doubao_studio import (
-        PLANNER_SYSTEM, PLANNER_CLARIFY_PROMPT, PLANNER_OUTLINE_PROMPT,
-        PLANNER_REVIEW_PROMPT, PLANNER_DIRECTIVE_PROMPT, WRITER_APPLY_PROMPT,
+        PLANNER_CLARIFY_PROMPT,
+        PLANNER_DIRECTIVE_PROMPT,
+        PLANNER_OUTLINE_PROMPT,
+        PLANNER_REVIEW_PROMPT,
+        PLANNER_SYSTEM,
+        WRITER_APPLY_PROMPT,
     )
     defaults = {
         "PLANNER_SYSTEM": PLANNER_SYSTEM,

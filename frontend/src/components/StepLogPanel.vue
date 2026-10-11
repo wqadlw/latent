@@ -84,9 +84,9 @@
 
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import { Histogram, Refresh, ArrowRight, DocumentCopy, Loading } from '@element-plus/icons-vue'
 import { browserStudioApi } from '../api'
+import { copyText } from '../utils/clipboard'
 
 const props = defineProps({
   runId: { type: Number, required: true },
@@ -136,18 +136,7 @@ function latClass(r) {
   return 'lat-ok'
 }
 
-async function copyText(text, label) {
-  if (!text) { ElMessage.warning('没有可复制的内容'); return }
-  try {
-    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text)
-    else {
-      const ta = document.createElement('textarea')
-      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta)
-    }
-    ElMessage.success(`已复制：${label}`)
-  } catch (e) { ElMessage.error('复制失败，请手动选择文本复制') }
-}
+// copyText 已抽到 utils/clipboard.js（全站统一实现）
 
 // ============ 轮询 ============
 function startPolling() {

@@ -1,9 +1,9 @@
 """
 通用工具函数
 """
+import hashlib
 import json
 import re
-import hashlib
 from datetime import date, datetime
 
 

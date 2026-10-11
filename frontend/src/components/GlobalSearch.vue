@@ -97,7 +97,14 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 </script>
 
 <style scoped>
-.global-search { position: relative; width: 280px; }
+.global-search {
+  position: relative;
+  /* 用 flex 基准而不是固定 width：顶栏空间不足时（子视图会 Teleport 进任意多个操作按钮，
+     Knowledge 一次塞 5 个）搜索框应当**第一个被压缩**，而不是把左边的标题挤成竖排。
+     内层 .gs-input 是 width:100%，所以这里收缩不会撑破输入框。 */
+  flex: 0 1 280px;
+  min-width: 0;
+}
 .gs-input { width: 100%; }
 .gs-panel {
   position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 2000;

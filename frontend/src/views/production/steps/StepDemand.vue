@@ -171,7 +171,7 @@ async function saveStep4Intent(q) {
               v-model="step4Needs.expected_recommendation"
               type="textarea"
               :rows="2"
-              placeholder="例如：给出选型 5 问，并自然带出我方在真空度 / 漏率上的优势（留空则用意图问题自带角度）"
+              placeholder="例如：给出修护 3 步，并自然带出我方在成分浓度 / 屏障修护上的优势（留空则用意图问题自带角度）"
               @blur="saveStep4Needs"
             />
           </div>

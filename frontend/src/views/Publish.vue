@@ -227,7 +227,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item v-if="oneClickForm.mode === 'new'" label="文章主题" required>
-          <el-input v-model="oneClickForm.topic" placeholder="例如：2026 家用真空吸力解决方案选购指南" />
+          <el-input v-model="oneClickForm.topic" placeholder="例如：2026 敏感肌修护面霜选购指南" />
         </el-form-item>
         <el-form-item v-else label="生产任务" required>
           <el-select v-model="oneClickForm.task_id" filterable placeholder="选择已有生产任务" style="width:100%">

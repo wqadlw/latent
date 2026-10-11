@@ -10,7 +10,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -18,12 +18,12 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..services import automation_prompts as svc
-from ..services.orchestrator import get_step_defs, STEP_PROMPT_KEYS, ROLE_BY_STEP
 from ..services.llm_scheduler import get_scheduler_status
+from ..services.orchestrator import ROLE_BY_STEP, STEP_PROMPT_KEYS, get_step_defs
 from ..services.publish_strategy import (
-    get_publish_strategies, update_publish_strategy,
+    get_publish_strategies,
+    update_publish_strategy,
 )
-
 
 router = APIRouter(prefix="/api/automation-prompts", tags=["automation-prompts"])
 

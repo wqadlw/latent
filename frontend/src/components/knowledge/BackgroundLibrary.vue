@@ -146,6 +146,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useAppStore } from '../../store/app'
 import { backgroundApi } from '../../api'
+import { writeClipboard } from '../../utils/clipboard'
 
 const store = useAppStore()
 const industryId = computed(() => store.currentIndustryId)
@@ -292,21 +293,10 @@ async function copy() {
     ElMessage.warning('暂无可复制的内容')
     return
   }
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-    }
+  // 用底层 writeClipboard 保留本处自定义提示语，同时获得非安全上下文降级
+  if (await writeClipboard(text)) {
     ElMessage.success('已复制背景资料，可粘贴给任意 AI')
-  } catch (e) {
+  } else {
     ElMessage.error('复制失败，请手动选择预览文本复制')
   }
 }

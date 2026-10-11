@@ -49,7 +49,7 @@
       <div class="man-section__head">
         <span class="man-no">②</span>
         <h2>背景内容（每次都会注入提示词）</h2>
-        <span class="man-mode-tag" :class="modeTagClass(previewMode)">{{ modeLabel(previewMode) }}</span>
+        <span class="man-mode-tag" :class="modeTagClass(previewMode)">{{ modeLabel(previewMode, modes) }}</span>
       </div>
       <p class="man-intro">以下内容会以占位符形式注入到每一步的提示词中。手动复现时，请把对应内容粘贴到你的提示词中。</p>
       <div class="man-ctx-grid">
@@ -169,7 +169,7 @@
         <div v-for="s in strategies" :key="s.id" class="man-ps-card">
           <div class="man-ps-head">
             <span class="man-ps-name">{{ s.platform_name }}</span>
-            <span class="man-ps-mode" :class="modeTagClass(s.publish_mode)">{{ modeLabel(s.publish_mode) }}</span>
+            <span class="man-ps-mode" :class="modeTagClass(s.publish_mode)">{{ modeLabel(s.publish_mode, modes) }}</span>
           </div>
           <div class="man-ps-body">
             <div class="man-ps-line"><span class="man-ps-k">标题</span>{{ s.title_min_len }}–{{ s.title_max_len }} 字</div>
@@ -226,9 +226,10 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
 import { Reading, ArrowRight, DocumentCopy, InfoFilled } from '@element-plus/icons-vue'
 import { automationPromptApi } from '../api'
+import { copyText } from '../utils/clipboard'
+import { modeLabel, modeTagClass } from '../constants/modes'
 
 const steps = ref([])
 const prompts = ref([])
@@ -371,12 +372,6 @@ const agentMeta = {
 function agentLabel(a) { return (agentMeta[a] || {}).label || a }
 function agentClass(a) { return (agentMeta[a] || {}).cls || '' }
 
-function modeTagClass(m) {
-  return { geo: 'm-geo', platform: 'm-platform', green: 'm-green', official: 'm-official' }[m] || 'm-geo'
-}
-function modeLabel(m) {
-  return (modes.value.find(x => x.value === m) || {}).label || m
-}
 function pubModeTypeLabel(t) {
   return { direct: '直接发布', draft: '存草稿', scheduled: '定时发布' }[t] || t || '直接发布'
 }
@@ -419,23 +414,12 @@ async function loadAll() {
   if (steps.value.length) openMap[steps.value[0].step_key] = true
 }
 
-async function copyText(text, label) {
-  if (!text) { ElMessage.warning('没有可复制的内容'); return }
-  try {
-    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text)
-    else {
-      const ta = document.createElement('textarea')
-      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta)
-    }
-    ElMessage.success(`已复制：${label || '内容'}`)
-  } catch (e) { ElMessage.error('复制失败，请手动选择文本复制') }
-}
+// copyText 已抽到 utils/clipboard.js（全站统一实现）
 
 function copyAll() {
   let parts = []
   parts.push('=== 操作手册 · 全流程复现指南 ===\n')
-  parts.push(`发布模式：${modeLabel(previewMode.value)}\n`)
+  parts.push(`发布模式：${modeLabel(previewMode.value, modes.value)}\n`)
   parts.push('--- 背景内容 ---')
   parts.push(`品牌策略：\n${context.brand_policy}`)
   parts.push(`模式目标：\n${context.mode_goal}`)

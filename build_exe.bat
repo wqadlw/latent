@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 >nul
-title 打包 PromptMatrix.exe
+title 打包 Latent.exe
 
 cd /d "%~dp0"
 
 echo ============================================================
-echo   打包 多行业提示词矩阵管理系统 为单文件 exe
+echo   打包 显影 Latent（企业级 GEO 运营系统）为单文件 exe
 echo ============================================================
 
 REM ---------- 前置检查 ----------
@@ -45,7 +45,7 @@ REM ---------- 3/3 打包 ----------
 echo.
 echo [3/3] 正在打包 exe（首次较慢，请耐心等待）...
 cd backend
-venv\Scripts\python.exe -m PyInstaller --noconfirm PromptMatrix.spec
+venv\Scripts\python.exe -m PyInstaller --noconfirm Latent.spec
 if errorlevel 1 (
     echo [错误] 打包失败
     cd ..
@@ -57,9 +57,9 @@ cd ..
 echo.
 echo ============================================================
 echo   打包完成！
-echo   产物: backend\dist\PromptMatrix.exe
+echo   产物: backend\dist\Latent.exe
 echo   当前 database.db 中的数据已作为「种子」随 exe 一起打包，
 echo   首次运行时自动还原到 exe 旁边的 data\database.db。
-echo   复制到其他电脑：PromptMatrix.exe 一个文件即可。
+echo   复制到其他电脑：Latent.exe 一个文件即可。
 echo ============================================================
 pause

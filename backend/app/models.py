@@ -2,11 +2,12 @@
 SQLAlchemy 数据模型
 所有业务表携带 industry_id 实现行业级数据隔离
 """
-from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Date, Boolean, ForeignKey, Index
-)
-from .database import Base, now
+from sqlalchemy import Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
+
 from .brand_config import OFFICIAL_SITE_URL
+from .crypto import EncryptedText
+from .database import Base, now
 
 
 # ============================================================
@@ -100,8 +101,13 @@ class Account(Base):
     __tablename__ = "account"
     id = Column(Integer, primary_key=True, autoincrement=True)
     industry_id = Column(Integer, ForeignKey("industry.id"), nullable=False, index=True)
-    platform_id = Column(Integer, ForeignKey("platform.id"), default=0)
-    persona_id = Column(Integer, ForeignKey("persona.id"), default=0)
+    # ⚠️ 外键列的可空默认值必须是 None，**不能是 0**。
+    # database.py 开着 PRAGMA foreign_keys=ON，而 0 通常不是合法外键（persona 表里就没有 id=0）。
+    # 写成 default=0 时，SQLAlchemy 会把「显式传 None」当成「用默认值」→ 插 persona_id=0
+    # → FOREIGN KEY constraint failed → 不选人设就建不了账号（500）。
+    # 同文件 KnowledgeItem.category_id / Keyword.group_id 用的就是 None，照它们写。
+    platform_id = Column(Integer, ForeignKey("platform.id"), default=None)
+    persona_id = Column(Integer, ForeignKey("persona.id"), default=None)
     account_name = Column(Text, nullable=False)
     content_track = Column(Text, default="")
     status = Column(Integer, default=1)
@@ -267,7 +273,7 @@ class RuleLibrary(Base):
 
 
 # ============================================================
-#  软文生产（7 步流程）
+#  软文生产（10 步流程）
 # ============================================================
 class ProductionTask(Base):
     """生产任务表"""
@@ -352,6 +358,10 @@ class ProductionTask(Base):
     legacy_run_id = Column(Integer, default=0)           # 原 browser_studio_run.id；手动流=0
     legacy_status = Column(String(32), default="")       # 原 browser_studio_run.status（审计保留）
 
+    # —— 阶段 C：可编排流水线 + 批量生产 ——
+    pipeline_spec = Column(Text, default="")             # 编排规格 JSON（启用哪些步骤 / 最大整改轮数）；空=默认全开
+    batch_id = Column(String(64), default="", index=True)  # 批量生产批次号；空=单独创建
+
 
 # ============================================================
 #  内容版本历史（每次保存内容变化时自动记录）
@@ -398,8 +408,8 @@ class ContentAsset(Base):
 # ============================================================
 # ============================================================
 #  LLM 供应商配置（行业级隔离，可多套并存，is_default 标记当前激活）
-#  说明：api_key 以明文存储于本地 SQLite（单机本地工具）。如需更高安全级别，
-#  后续可在此扩展字段级加密；当前按"本地私有部署"假设权衡，避免过度工程。
+#  v3：api_key 改为 EncryptedText —— 落库自动加密（Fernet），读取自动解密，
+#  业务代码仍按明文使用；历史明文数据由启动迁移幂等转密文。
 # ============================================================
 class LlmConfig(Base):
     """LLM 供应商配置（DeepSeek / OpenAI 兼容协议均可）"""
@@ -408,7 +418,7 @@ class LlmConfig(Base):
     industry_id = Column(Integer, ForeignKey("industry.id"), nullable=False, index=True)
     name = Column(String(64), default="默认")
     provider = Column(String(32), default="deepseek")  # deepseek/openai/qwen/moonshot
-    api_key = Column(Text, default="")                  # 供应商密钥（明文存储，本地私有部署）
+    api_key = Column(EncryptedText, default="")         # 供应商密钥（落库加密）
     base_url = Column(Text, default="")                 # 自定义网关/代理；留空用供应商默认地址
     model = Column(String(64), default="deepseek-v4-pro")
     temperature = Column(String(16), default="0.7")     # 存字符串，避免浮点 ALTER 迁移麻烦
@@ -427,9 +437,8 @@ class LlmConfig(Base):
 
 
 # ============================================================
-#  平台发布凭证（cookie / 账号密码，明文存储，本地私有部署假设）
-#  说明：与 llm_config 同策略——本地单机工具，明文存储避免过度工程；
-#  若部署到多用户/公网环境，应在此扩展字段级加密（Fernet/AES）。
+#  平台发布凭证（cookie / 账号密码）
+#  v3：cred_json 改为 EncryptedText —— 落库加密，读取解密。
 #  安全边界：cookie 由用户在本机手动登录后导出上传，系统绝不自动破解 2FA。
 # ============================================================
 class PlatformCredential(Base):
@@ -439,7 +448,7 @@ class PlatformCredential(Base):
     industry_id = Column(Integer, ForeignKey("industry.id"), nullable=False, index=True)
     platform = Column(String(32), default="")          # zhihu / sohu / wangyi / wechat / xiaohongshu ...
     cred_type = Column(String(16), default="cookie")   # cookie | password
-    cred_json = Column(Text, default="")               # cookie JSON 数组 或 {"username":..., "password":...}
+    cred_json = Column(EncryptedText, default="")      # cookie JSON 数组 或 {"username":..., "password":...}（落库加密）
     status = Column(Integer, default=1)                # 1 正常 / 0 停用
     needs_relogin = Column(Integer, default=0)         # 1 = 登录态失效，需人工续期
     note = Column(Text, default="")
@@ -578,6 +587,11 @@ class GeoMonitorReply(Base):
     valuable_positive = Column(Integer, default=0)  # 是否"有价值的正面"（带数据/案例）0/1
     recommended = Column(Integer, default=0)     # AI 是否明确"推荐"该品牌 0/1
     snippet = Column(Text, default="")           # 提及品牌的片段
+    # v3.1：手工粘贴通道与自动采集通道共存的桥接字段。
+    # 手工粘贴的回复 run_id=0；自动采集产生的回复回填对应 geo_visibility_run.id，
+    # 使两条通道的指标能进入同一套统计口径。
+    run_id = Column(Integer, default=0, index=True)
+    source_channel = Column(String(16), default="manual")  # manual（人工粘贴）/ auto（自动采集）
     create_time = Column(DateTime, default=now)
     update_time = Column(DateTime, default=now, onupdate=now)
 
@@ -861,4 +875,205 @@ class BackgroundLibrary(Base):
     include_brand = Column(Integer, default=1)
     excluded_item_ids = Column(Text, default="[]")
     updated_at = Column(DateTime, default=now, onupdate=now)
+
+
+# ============================================================
+#  爬虫流量日志（GEO 归因闭环的地基）
+#  回答「我们发的文章到底有没有被 AI 爬」——这是「发布 → 收录」之间唯一的客观证据。
+#  仅记录**非人类**流量（ai_bot / search_bot / other_bot），真人访问不落库，
+#  避免表体积失控；如需全量记录可设 APP_TRAFFIC_LOG_ALL=1。
+# ============================================================
+class CrawlerHit(Base):
+    """一次爬虫抓取记录（由 TrafficLogMiddleware 写入）"""
+    __tablename__ = "crawler_hit"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    hit_time = Column(DateTime, default=now, index=True)
+    path = Column(Text, default="")                  # 被访问的路径
+    query = Column(Text, default="")                 # 查询串（不含前导 ?）
+    user_agent = Column(Text, default="")
+    bot_class = Column(String(16), default="", index=True)   # ai_bot / search_bot / other_bot / human / unknown
+    bot_name = Column(String(64), default="", index=True)    # GPTBot / Baiduspider / ...
+    method = Column(String(8), default="GET")
+    status_code = Column(Integer, default=0)
+    referer = Column(Text, default="")
+    # 只存 IP 的哈希前 16 位：足以区分「同源重复抓取」与「不同源」，
+    # 又不落明文 IP，规避个人信息合规风险。
+    ip_hash = Column(String(32), default="", index=True)
+    # 命中的已发布内容（由 services/attribution.py 回填，用于「哪篇文章被爬了」统计）
+    publish_job_id = Column(Integer, default=0, index=True)
+    content_asset_id = Column(Integer, default=0, index=True)
+    matched_url = Column(Text, default="")           # 命中的已发布 URL（回填）
+
+
+# ============================================================
+#  GEO 质检闸门（把「分数」升级为「决策」）
+#  一路质检 = 一条记录。输入是文章正文，输出是三态决策 + 硬阻塞项 + 未验证断言。
+#  设计要点：
+#   - decision 三态：passed（自动放行）/ needs_review（人工复核）/ blocked（拦截）
+#   - hard_blockers 与 soft_issues 分离：前者一票否决，后者只扣分
+#   - inspection_scope：full（全文）/ fallback_sampled（超时抽样兜底）
+#   - 三路原始结果（本地规则 / GEO 评分 / 心智温度）全量落库，便于事后复盘与阈值调优
+# ============================================================
+class QualityCheck(Base):
+    """内容质检记录（三态闸门裁决结果）"""
+    __tablename__ = "quality_check"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    industry_id = Column(Integer, ForeignKey("industry.id"), nullable=False, index=True)
+    task_id = Column(Integer, default=0, index=True)          # 关联 production_task.id
+    title = Column(Text, default="")
+    content_hash = Column(String(64), default="", index=True)  # 正文 sha256，用于命中缓存/去重
+    decision = Column(String(16), default="needs_review", index=True)
+    score = Column(Float, default=0.0)                        # 综合分 0-100
+    inspection_scope = Column(String(24), default="full")     # full / fallback_sampled
+    hard_blockers_json = Column(Text, default="[]")
+    soft_issues_json = Column(Text, default="[]")
+    unverified_claims_json = Column(Text, default="[]")       # 无证据支撑的断言清单
+    verified_claims_json = Column(Text, default="[]")         # 已绑定证据的断言
+    evidence_coverage = Column(Float, default=0.0)            # 证据覆盖率 0-1
+    rule_result_json = Column(Text, default="{}")             # rule_checker 原始输出
+    geo_result_json = Column(Text, default="{}")              # geo_score 原始输出
+    mind_result_json = Column(Text, default="{}")             # 心智温度原始输出
+    thresholds_json = Column(Text, default="{}")              # 本次生效的阈值快照
+    algorithm_version = Column(String(16), default="v1")
+    latency_ms = Column(Integer, default=0)
+    create_time = Column(DateTime, default=now, index=True)
+
+
+# ============================================================
+#  AI 可见性采集（把「手工粘贴 AI 回答」升级为「自动并发探测」）
+#  数据模型刻意分成两层：
+#   - GeoVisibilityRun   = 一次探测（一个问题 × 一个引擎 × 一次调用）
+#   - GeoVisibilitySource = 这次探测里 AI 引用到的信源（N 条）
+#  之所以必须存「信源」，是因为它才是 GEO 最有价值的数据：
+#  它直接回答「AI 在回答我的问题时偏爱引用谁」，从而指导内容该铺到哪里。
+# ============================================================
+class GeoVisibilityRun(Base):
+    """一次 AI 可见性探测（对应 GEOFlow 的 AiVisibilityRun）"""
+    __tablename__ = "geo_visibility_run"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    industry_id = Column(Integer, ForeignKey("industry.id"), nullable=False, index=True)
+    monitor_id = Column(Integer, default=0, index=True)       # 关联 geo_monitor.id（可空）
+    parent_run_id = Column(Integer, default=0, index=True)    # 竞品检测 Run 挂回主 Run
+    uuid = Column(String(40), default="", unique=True)
+    keyword = Column(Text, default="", index=True)
+    prompt = Column(Text, default="")                         # 实际发出的提示词（跨时间对比的锚点）
+    provider_type = Column(String(32), default="", index=True)
+    provider_key = Column(String(32), default="")
+    llm_config_id = Column(Integer, default=0)                # 用的哪套 LLM 配置
+    model_id = Column(String(64), default="")
+    status = Column(String(16), default="running", index=True)  # queued/running/completed/failed
+    answer_text = Column(Text, default="")
+    latency_ms = Column(Integer, default=0)
+    usage_json = Column(Text, default="{}")
+    analysis_json = Column(Text, default="{}")                # 归一化后的结构化分析
+    raw_request_json = Column(Text, default="{}")
+    raw_response_json = Column(Text, default="{}")
+    error_code = Column(String(64), default="")               # 稳定错误码，非自由文本
+    start_time = Column(DateTime, default=now)
+    complete_time = Column(DateTime, nullable=True)
+    create_time = Column(DateTime, default=now, index=True)
+
+    # 信源集合：``run_to_dict(include_sources=True)`` 与删除级联都依赖这条关系。
+    # 刻意不用 ``lazy="selectin"`` —— 列表页一次要取几十条 Run，
+    # 提前把每个 Run 的信源全捞出来纯属浪费；按需惰性加载即可。
+    # ``order_by=rank`` 保证「引用优先级」顺序稳定，前端无需再排。
+    sources = relationship(
+        "GeoVisibilitySource",
+        backref="run",
+        cascade="all, delete-orphan",
+        order_by="GeoVisibilitySource.rank",
+    )
+
+
+class GeoVisibilitySource(Base):
+    """一次探测中被 AI 引用的一条信源（对应 GEOFlow 的 AiVisibilitySource）"""
+    __tablename__ = "geo_visibility_source"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(Integer, ForeignKey("geo_visibility_run.id"), nullable=False, index=True)
+    source_type = Column(String(24), default="")              # citation / search_result / inline
+    citation_key = Column(String(64), default="")             # 回答正文里的引用标记（如 [1]）
+    title = Column(Text, default="")
+    url = Column(Text, default="")
+    domain = Column(String(255), default="", index=True)      # 信源域名（统计的核心维度）
+    site_name = Column(String(128), default="")
+    snippet = Column(Text, default="")
+    summary = Column(Text, default="")
+    content_excerpt = Column(Text, default="")
+    published_at = Column(String(32), default="")
+    rank = Column(Integer, default=0)                         # 引用顺序（1 = 第一个被引用）
+    rank_score = Column(Float, default=0.0)
+    authority_level = Column(String(16), default="")          # high / medium / low
+    is_owned = Column(Integer, default=0)                     # 是否自有站点（品牌官网/自建站）
+    metadata_json = Column(Text, default="{}")
+    create_time = Column(DateTime, default=now)
+
+
+# ============================================================
+#  竞品检测（AI 在同一批关键词上还推荐了谁）
+# ============================================================
+class GeoVisibilityCompetitor(Base):
+    """竞品库"""
+    __tablename__ = "geo_visibility_competitor"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    industry_id = Column(Integer, ForeignKey("industry.id"), nullable=False, index=True)
+    name = Column(String(128), default="", index=True)
+    aliases_json = Column(Text, default="[]")
+    is_self = Column(Integer, default=0)                      # 1 = 本品牌（用于对比基线）
+    note = Column(Text, default="")
+    create_time = Column(DateTime, default=now)
+    is_deleted = Column(Integer, default=0)
+
+
+class GeoVisibilityCompetitorDetection(Base):
+    """某次探测中检出的竞品"""
+    __tablename__ = "geo_visibility_competitor_detection"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(Integer, ForeignKey("geo_visibility_run.id"), nullable=False, index=True)
+    competitor_id = Column(Integer, default=0, index=True)
+    name = Column(String(128), default="")                    # 未入竞品库时保留原始名
+    mentioned = Column(Integer, default=0)
+    mention_count = Column(Integer, default=0)
+    rank = Column(Integer, default=0)                         # 在 AI 推荐列表里的位次
+    sentiment = Column(String(16), default="")
+    snippet = Column(Text, default="")
+    create_time = Column(DateTime, default=now)
+
+
+# ============================================================
+#  阶段 C：生产队列（有界并发执行池的持久化载体）
+# ============================================================
+class PipelineJob(Base):
+    """一条流水线执行作业：一次运行（production_task.mode='auto'）在队列里的一次调度。
+
+    为什么要有这张表，而不是直接在 production_task 上加个状态字段
+    ------------------------------------------------------------
+    ``production_task.status`` 描述的是**内容本身**走到哪一步了
+    （created / running / await_confirm / succeeded / failed），
+    而队列关心的是**调度**：谁在排队、谁占了 worker、失败了几次、下次什么时候可以再试。
+    两者会同时为真却互不相同 —— 比如一条任务已经 ``await_confirm``（内容就绪、等人点确认），
+    它的作业却早已 ``done``。塞进同一个字段必然互相覆盖，所以拆开。
+
+    断点续跑的落点
+    --------------
+    作业失败后重新入队时**不清空** run 的中间产物，配合 ``services.pipeline`` 的
+    已完成前缀计算，重跑只会从失败那一步继续，不会从①重新烧一遍 token。
+    """
+    __tablename__ = "pipeline_job"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    industry_id = Column(Integer, ForeignKey("industry.id"), nullable=False, index=True)
+    run_id = Column(Integer, nullable=False, index=True)      # production_task.id（mode='auto'）
+    batch_id = Column(String(64), default="", index=True)     # 批量生产批次号；空=单条投递
+    status = Column(String(16), default="queued", index=True)  # queued/running/done/failed/cancelled
+    priority = Column(Integer, default=5)                     # 1=最高，越小越先执行
+    attempts = Column(Integer, default=0)                     # 已尝试次数
+    max_attempts = Column(Integer, default=2)                 # 含首次；用尽后置 failed
+    available_at = Column(DateTime, nullable=True)            # 退避重试：早于此刻不领取
+    cancel_requested = Column(Integer, default=0)             # 1=请求取消：排队中的立刻置 cancelled；运行中的跑完本次后按已取消收尾，不进入重试
+    worker = Column(String(64), default="")                   # 占用它的 worker 标识
+    error = Column(Text, default="")                          # 末次失败原因
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    create_time = Column(DateTime, default=now)
+    update_time = Column(DateTime, default=now, onupdate=now)
+    is_deleted = Column(Integer, default=0)
 

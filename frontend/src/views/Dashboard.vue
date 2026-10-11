@@ -4,7 +4,7 @@
     <div class="welcome-banner">
       <div class="welcome-content">
         <h2 class="welcome-title">{{ greeting }}，管理员</h2>
-        <p class="welcome-desc">欢迎使用 Prompt Matrix 软文宣传矩阵系统，当前行业：<strong>{{ store.currentIndustryName }}</strong></p>
+        <p class="welcome-desc">欢迎使用显影 Latent 企业级 GEO 运营系统，当前行业：<strong>{{ store.currentIndustryName }}</strong></p>
       </div>
       <div class="welcome-deco">
         <svg viewBox="0 0 200 120" fill="none" width="200" height="120">
@@ -59,8 +59,8 @@
             <div class="recent-item__main">
               <div class="recent-item__title">{{ task.title || `任务 #${task.id}` }}</div>
               <div class="recent-item__meta">
-                <el-tag size="small" :type="statusType(task.status)" effect="light">{{ statusLabel(task.status) }}</el-tag>
-                <span class="recent-item__time">{{ formatTime(task.update_time) }}</span>
+                <el-tag size="small" :type="taskStatusType(task.status)" effect="light">{{ taskStatusLabel(task.status) }}</el-tag>
+                <span class="recent-item__time">{{ formatMonthDay(task.update_time) }}</span>
               </div>
             </div>
             <el-icon class="recent-item__arrow"><ArrowRight /></el-icon>
@@ -84,7 +84,10 @@
           </div>
           <div class="status-item">
             <span class="status-item__label">系统版本</span>
-            <span class="status-item__value">v2.0.0</span>
+            <!-- 版本号唯一来源是后端 app/version.py，经 /api/meta 读取。
+                 此前这里硬编码 v2.0.0，而 README 徽章写 3.0.0 —— 正是 version.py
+                 文档里警告过的三处漂移，只是当时没把前端接上。 -->
+            <span class="status-item__value">v{{ appVersion }}</span>
           </div>
           <div class="status-item">
             <span class="status-item__label">运行模式</span>
@@ -103,13 +106,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../store/app'
-import { productionApi, contentApi, keywordApi } from '../api'
+import { productionApi, contentApi, keywordApi, metaApi } from '../api'
+import { formatMonthDay } from '../utils/format'
+import { taskStatusLabel, taskStatusType } from '../constants/status'
 import StatCard from '../components/StatCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 
 const store = useAppStore()
 const stats = ref({ production: 0, pending: 0, published: 0, keywords: 0 })
 const recentTasks = ref([])
+// 取不到时留空而不是回落到硬编码值 —— 宁可界面显示「v」也不要再出现第二个版本号来源。
+const appVersion = ref('')
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -121,19 +128,11 @@ const greeting = computed(() => {
 })
 
 const quickEntries = [
-  { path: '/production', title: '软文生产', desc: '7步标准化生产流程', icon: 'MagicStick', bg: 'var(--brand-50)', color: 'var(--brand-600)' },
+  { path: '/production', title: '软文生产', desc: '10步标准化生产流程', icon: 'MagicStick', bg: 'var(--brand-50)', color: 'var(--brand-600)' },
   { path: '/prompt-library', title: 'AI提示词库', desc: '4分类提示词模板', icon: 'Files', bg: '#fffbeb', color: 'var(--accent-amber)' },
   { path: '/brand-asset', title: '品牌资产库', desc: '品牌信息管理', icon: 'GoldMedal', bg: '#ecfdf5', color: 'var(--accent-emerald)' },
   { path: '/content', title: '内容中心', desc: '审核 · 资产 · 运营一体化', icon: 'Calendar', bg: '#f5f3ff', color: 'var(--accent-violet)' },
 ]
-
-const statusType = (s) => ({ draft: 'info', processing: 'warning', done: 'success', archived: 'info' }[s] || 'info')
-const statusLabel = (s) => ({ draft: '草稿', processing: '进行中', done: '已完成', archived: '已归档' }[s] || s)
-
-function formatTime(t) {
-  if (!t) return '—'
-  return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
 
 async function loadStats() {
   if (!store.currentIndustryId) return
@@ -157,9 +156,19 @@ async function loadStats() {
   }
 }
 
+async function loadVersion() {
+  try {
+    const res = await metaApi.get()
+    appVersion.value = res.data?.version || ''
+  } catch (e) {
+    // 版本号取不到不该影响工作台主功能，静默留空即可。
+    console.error('加载版本号失败', e)
+  }
+}
+
 onMounted(async () => {
   await store.loadIndustries()
-  await loadStats()
+  await Promise.all([loadStats(), loadVersion()])
 })
 </script>
 

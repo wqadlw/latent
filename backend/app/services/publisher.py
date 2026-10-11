@@ -376,7 +376,7 @@ class PlaywrightAdapter(PlatformAdapter):
                 # 填标题
                 t = self.cfg.get("title", {})
                 page.fill(t["selector"], title, timeout=15000)
-                log.append(f"[playwright] 已填标题")
+                log.append("[playwright] 已填标题")
 
                 # 填正文（HTML 走 contenteditable，fill 走 textarea/input）
                 c = self.cfg.get("content", {})
@@ -568,7 +568,7 @@ class PlaywrightCookieCapture:
     def _run(self) -> None:
         try:
             from playwright.sync_api import sync_playwright  # type: ignore
-        except Exception as e:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             self.status = "failed"
             self.error = ("服务端未安装 playwright，且未检测到本机 Edge/Chrome。可二选一：\n"
                           "① 安装本机 Microsoft Edge 或 Google Chrome（推荐，自动复用）；\n"

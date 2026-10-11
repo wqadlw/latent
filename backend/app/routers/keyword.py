@@ -1,11 +1,13 @@
 """关键词与选题管理路由"""
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import Keyword, KeywordGroup, Topic, Platform, Account
-from ..utils import to_dict, parse_ids, parse_date
+from ..models import Account, Keyword, KeywordGroup, Platform, Topic
+from ..utils import parse_date, parse_ids, to_dict
 
 router = APIRouter(prefix="/api", tags=["关键词/选题"])
 
@@ -229,11 +231,11 @@ def batch_import_keywords(payload: KeywordBatchIn, db: Session = Depends(get_db)
         return None
 
     # 预取该行业已有词，便于去重
-    existing = set(
+    existing = {
         w for (w,) in db.query(Keyword.word)
         .filter(Keyword.industry_id == ind, Keyword.is_deleted == 0)
         .all()
-    )
+    }
     created = 0
     skipped = 0
     errors = []

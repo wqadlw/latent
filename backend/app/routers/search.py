@@ -3,7 +3,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Keyword, RuleLibrary, PromptLibraryItem, KnowledgeItem, IntentQuestion, GeoMonitor
+from ..models import GeoMonitor, IntentQuestion, Keyword, KnowledgeItem, PromptLibraryItem, RuleLibrary
 
 router = APIRouter(prefix="/api/search", tags=["全局搜索"])
 

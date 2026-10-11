@@ -1,5 +1,23 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-sqlalchemy==2.0.35
-pydantic==2.9.2
-python-multipart==0.0.12
+# ============================================================
+#  核心运行依赖（必需）
+#  安装：pip install -r requirements.txt
+#
+#  版本策略：给出**兼容区间**而非钉死小版本。
+#  原因：项目要求 Python >= 3.9，而钉死的小版本在较新的 Python（如 3.13）上
+#  可能缺少预编译轮子，导致 pip 回退到源码编译（pydantic-core 需要 Rust 工具链），
+#  轻则安装数分钟，重则直接失败。区间约束让 pip 自动挑选有轮子的版本。
+# ============================================================
+fastapi>=0.115,<0.200
+uvicorn>=0.30,<0.40
+sqlalchemy>=2.0.35,<2.1
+pydantic>=2.10,<3
+python-multipart>=0.0.12
+
+# --- v3 新增 ---
+# 数据库版本化迁移：取代此前塞在 main.py init_db() 里的手写 PRAGMA/ALTER TABLE 迁移块
+alembic>=1.13,<2
+# 密钥加密存储：LLM api_key 与平台登录凭据的字段级加密（Fernet）
+cryptography>=43.0
+
+# 说明：浏览器自动化依赖 Playwright，体积较大且需额外下载浏览器内核，
+# 因此单独放在 requirements-optional.txt。缺失时相关功能会优雅降级并给出提示。

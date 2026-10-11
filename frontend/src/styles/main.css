@@ -1,5 +1,5 @@
 /* ============================================================
-   Prompt Matrix · Design System v3.0
+   显影 Latent · Design System v3.0
    现代化大厂级设计系统
    ============================================================ */
 :root {
@@ -23,6 +23,37 @@
   --accent-violet:  #8b5cf6;
   --accent-sky:     #0ea5e9;
 
+  /* ===== 语义色阶（危险 / 警告 / 成功）=====
+     为什么必须补齐：写 `color: var(--red-500)` 而该变量不存在时，整条声明会被浏览器
+     丢弃，元素静默回退到继承色——不报错、不警告，只是「颜色不太对」，极难排查。
+     阶段 D 之前有 7 个这样的变量（--red-50/300/500/600、--amber-500、--emerald-300、
+     --bg-hover），共 17 处引用在静默失效。此处一次补全，并用
+     `scripts/audit-css-tokens.mjs` 守住不再复发。
+     色值取 Tailwind 标准阶，与已有的 --accent-* 同源（accent-emerald 即 emerald-500）。 */
+  --red-50:  #fef2f2;
+  --red-100: #fee2e2;
+  --red-300: #fca5a5;
+  --red-400: #f87171;
+  --red-500: #ef4444;
+  --red-600: #dc2626;
+  --red-700: #b91c1c;
+
+  --amber-50:  #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-300: #fcd34d;
+  --amber-400: #fbbf24;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+
+  --emerald-50:  #ecfdf5;
+  --emerald-100: #d1fae5;
+  --emerald-300: #6ee7b7;
+  --emerald-400: #34d399;
+  --emerald-500: #10b981;
+  --emerald-600: #059669;
+  --emerald-700: #047857;
+
   /* ===== 中性色阶 (Slate) ===== */
   --slate-50:  #f8fafc;
   --slate-100: #f1f5f9;
@@ -41,6 +72,9 @@
   --bg-card:    #ffffff;
   --bg-sidebar: #0b1120;
   --bg-overlay: rgba(15, 23, 42, 0.04);
+  --bg-hover:     #f1f5f9;   /* 列表项 / 卡片 hover 底色 */
+  --bg-mute:      #f1f5f9;   /* 进度条轨道等静默底 */
+  --bg-secondary: #f7f8fa;   /* 次级面板块（与 bg-page 区分：更浅、更中性） */
 
   --text-primary:   #0f172a;
   --text-secondary: #475569;
@@ -72,6 +106,13 @@
   --transition-fast: all 0.16s ease;
   --transition: all 0.2s ease;
   --transition-slow: all 0.3s ease;
+
+  /* ===== 字体族 =====
+     等宽字体此前散落各处在写 `var(--font-mono, monospace)` 这类带 fallback 的引用，
+     等于每处各写各的兜底值；收敛到令牌后语义才唯一。 */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 * {
@@ -82,8 +123,7 @@
 
 html, body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   color: var(--text-primary);
   background: var(--bg-page);
@@ -240,3 +280,4 @@ a:hover { color: var(--brand-700); }
 .slide-up-leave-active { transition: all 0.18s ease; }
 .slide-up-enter-from { opacity: 0; transform: translateY(10px); }
 .slide-up-leave-to { opacity: 0; transform: translateY(-6px); }
+

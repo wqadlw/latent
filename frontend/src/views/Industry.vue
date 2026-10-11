@@ -40,7 +40,7 @@
     <el-dialog v-model="dialogVisible" :title="editing ? '编辑行业' : '新建行业'" width="480px">
       <el-form :model="form" label-width="80px">
         <el-form-item label="行业名称">
-          <el-input v-model="form.name" placeholder="如：真空泵行业" />
+          <el-input v-model="form.name" placeholder="如：美妆护肤行业" />
         </el-form-item>
         <el-form-item label="行业描述">
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="行业描述" />

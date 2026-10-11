@@ -5,7 +5,6 @@
 """
 from app.services import rule_checker
 
-
 # ===================== 合规检测 =====================
 
 def test_check_compliance_banned_word():

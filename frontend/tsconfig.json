@@ -1,0 +1,41 @@
+{
+  // 阶段 D · D3：渐进式 TypeScript 的「车道」。
+  //
+  // 核心策略是 **allowJs + checkJs:false**：
+  //   存量 30+ 个 .vue / .js 文件保持原样、不参与类型检查（否则一次开闸会有上千条报错，
+  //   没人能在一个 PR 里修完，最后只能整个关掉——那才是真的白装）。
+  //   新写的文件用 `lang="ts"`，一上来就有类型。
+  //
+  // 为什么 typecheck 不接进 build：
+  //   Vite 只做转译、不做类型检查（这正是它能快的原因）。类型检查是 vue-tsc 的独立职责。
+  //   把 `vue-tsc --noEmit` 塞进 `npm run build` 会让「一个存量文件的类型瑕疵」直接
+  //   阻塞构建产物——而构建产物是后端打包 exe 的输入。两件事必须解耦。
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // —— 渐进迁移的两个开关 ——
+    "allowJs": true, // 允许 .ts 引用 .js 并从 JS 源码推断类型
+    "checkJs": false, // 但不检查 .js 本身
+
+    "baseUrl": ".",
+    "paths": {
+      // 与 vite.config.js 的 resolve.alias 保持一致（那里是唯一真源，这里只是让 TS 知道）
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "src/**/*.js"],
+  "exclude": ["node_modules", "../backend/static", "dist"]
+}

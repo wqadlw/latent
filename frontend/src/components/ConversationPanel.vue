@@ -83,9 +83,10 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import { ChatDotRound, Refresh, DocumentCopy, Loading } from '@element-plus/icons-vue'
 import { browserStudioApi } from '../api'
+import { copyText } from '../utils/clipboard'
+import { modeLabel } from '../constants/modes'
 
 const props = defineProps({
   runId: { type: Number, required: true },
@@ -108,15 +109,15 @@ async function load() {
   loading.value = true
   try {
     const res = await browserStudioApi.conversation(props.runId)
-    data.value = (res.data && res.data.data) || data.value
+    // 拦截器已拆掉 axios 外壳，res 就是后端体 { code, data }。
+    // 原先写 res.data.data —— 多拆一层，恒为 undefined，于是每次都回退到初始值
+    // `{ has_data: false, ... }`：这个「创作对话」面板从来没能显示出任何一条消息。
+    data.value = res?.data || data.value
   } catch (e) { /* 拦截器已提示 */ }
   finally { loading.value = false }
 }
 
 // ============ 展示辅助 ============
-function modeLabel(m) {
-  return { geo: '强品牌/GEO', platform: '平台合规', green: '绿色吸粉', official: '官网MDX' }[m] || m || '—'
-}
 function stepKeyLabel(k) {
   return {
     clarify: '明晰', outline: '大纲', draft: '初稿', depolish: '去AI味',
@@ -124,18 +125,7 @@ function stepKeyLabel(k) {
     clarified_brief: '简报', editor_review: '评语', final: '终稿',
   }[k] || k || '—'
 }
-async function copyText(text, label) {
-  if (!text) { ElMessage.warning('没有可复制的内容'); return }
-  try {
-    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text)
-    else {
-      const ta = document.createElement('textarea')
-      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta)
-    }
-    ElMessage.success(`已复制：${label}`)
-  } catch (e) { ElMessage.error('复制失败，请手动选择文本复制') }
-}
+// copyText 已抽到 utils/clipboard.js（全站统一实现）
 
 // ============ 轮询 ============
 function startPolling() {

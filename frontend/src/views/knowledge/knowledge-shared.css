@@ -1,0 +1,38 @@
+/*
+ * 知识库 —— CategoryPanel / ItemPanel 之间复用的样式。
+ *
+ * ⚠️ 这个文件**故意不带 scoped**（沿用 views/production/steps/step-shared.css 与
+ * views/browser-studio/studio-shared.css 的先例）：scoped 样式只能作用到子组件的
+ * **根元素**，够不到子组件内部，所以「两个面板都要用的面板头」写在任何一个面板里
+ * 都够不到另一个。
+ *
+ * ⚠️ 但这里有个**本文件特有的陷阱**：`.panel-head` / `.panel-title` / `.batch-bar` /
+ * `.item-panel` 这些名字 **Keyword.vue 也在用**。如果照原名放进非 scoped 表里，
+ * 它们会变成全局规则、泄漏到关键词页去（虽然 Keyword 自己的 scoped 规则靠
+ * `[data-v-*]` 的额外特异性通常能压住，但那是「碰巧能赢」，不是设计）。
+ * 所以这里的共享类统一加 `kb-` 前缀：只给知识库用，且一眼看得出是共享类。
+ *
+ * 门槛（照 D4 的规矩）：**必须真的被 2 个以上组件用到**。
+ * 目前只有这三条达标（两个面板都要「卡片外壳 + 面板头」）。
+ * `.batch-bar` / `.tag-filter-bar` / `.item-card` 等只被 ItemPanel 用，
+ * 留在它自己的 scoped style 里 —— 共享表不是杂物间。
+ */
+
+/* 面板卡片外壳 */
+.kb-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* 面板头 */
+.kb-panel-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+}
+.kb-panel-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }

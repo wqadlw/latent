@@ -1,13 +1,13 @@
 """效果数据统计路由"""
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
-from datetime import datetime
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import EffectRecord, Keyword, ContentAsset, Platform, Account
-from ..utils import to_dict, parse_date
+from ..models import Account, ContentAsset, EffectRecord, Keyword, Platform
+from ..utils import parse_date, to_dict
 
 router = APIRouter(prefix="/api/effect", tags=["效果统计"])
 

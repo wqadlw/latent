@@ -8,19 +8,20 @@
 - 导入/导出接口
 - 复制接口增强（含新字段）
 """
-from ..constants import BUILTIN_VARIABLES
+import json
+from typing import Any, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from typing import List, Optional, Any
 from pydantic import BaseModel, field_validator
+from sqlalchemy.orm import Session
+
+from ..constants import BUILTIN_VARIABLES
 from ..database import get_db, now
-from ..models import PromptLibraryItem, Industry, LlmConfig
-from ..utils import to_dict, parse_json
-from ..services.prompt_engine import extract_variables, VARIABLE_DESCRIPTIONS
-from ..services.llm import get_provider, LLMError
-import json
-import io
+from ..models import LlmConfig, PromptLibraryItem
+from ..services.llm import LLMError, get_provider
+from ..services.prompt_engine import VARIABLE_DESCRIPTIONS, extract_variables
+from ..utils import to_dict
 
 router = APIRouter(prefix="/api/prompt-library", tags=["AI提示词库"])
 
@@ -221,8 +222,8 @@ def seed_defaults(industry_id: int, db: Session = Depends(get_db)):
     落实"删除所有提示词、重新编写可耦合系统"的要求：每次灌入都是一次干净替换。
     仅清除 is_default=1 的系统默认模板，保留用户自建（is_default=0）的提示词。
     """
-    from .prompt_defaults import DEFAULT_PROMPTS
     from ..services.prompt_engine import extract_variables
+    from .prompt_defaults import DEFAULT_PROMPTS
 
     # 1) 先软删除该行业全部系统默认提示词（实现干净替换，不影响用户自建模板）
     db.query(PromptLibraryItem).filter(
@@ -274,8 +275,7 @@ def test_render(payload: dict, db: Session = Depends(get_db)):
     需要: prompt_id 或 content + industry_id
     可选: keyword_ids, knowledge_item_ids 等模拟上下文
     """
-    from ..services.prompt_engine import render_prompt, build_render_context, unresolved_variables
-    from ..models import ProductionTask
+    from ..services.prompt_engine import build_render_context, render_prompt, unresolved_variables
 
     prompt_id = payload.get("prompt_id")
     content = payload.get("content", "")
@@ -385,7 +385,7 @@ def import_prompts(payload: dict, db: Session = Depends(get_db)):
         try:
             data = json.loads(data) if isinstance(data, str) else []
         except Exception:
-            raise HTTPException(400, "data 格式错误，应为 JSON 数组")
+            raise HTTPException(400, "data 格式错误，应为 JSON 数组") from None
 
     created = 0
     errors = []

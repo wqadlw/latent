@@ -1,13 +1,25 @@
 """行业空间管理路由"""
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List, Optional
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from ..database import get_db
 from ..models import (
-    Industry, Platform, Persona, Account, KnowledgeCategory, KnowledgeItem,
-    ContentAsset, RuleLibrary, Keyword, Topic,
-    PromptLibraryItem, BrandAsset, EffectRecord,
+    Account,
+    BrandAsset,
+    ContentAsset,
+    EffectRecord,
+    Industry,
+    Keyword,
+    KnowledgeCategory,
+    KnowledgeItem,
+    Persona,
+    Platform,
+    PromptLibraryItem,
+    RuleLibrary,
+    Topic,
 )
 from ..utils import to_dict
 

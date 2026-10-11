@@ -1,10 +1,12 @@
 """三大规则库管理路由"""
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from ..database import get_db
-from ..models import RuleLibrary, Industry, BrandAsset
+from ..models import BrandAsset, Industry, RuleLibrary
 from ..utils import to_dict
 
 router = APIRouter(prefix="/api/rule", tags=["规则库"])
@@ -346,7 +348,7 @@ def generate_rule_assistant_prompt(payload: dict, db: Session = Depends(get_db))
             parts.append(f"### {RULE_TYPE_LABELS[rtype]}（暂无规则，可自由创建）")
 
     # 任务
-    parts.append(f"""## 任务要求
+    parts.append("""## 任务要求
 
 请基于以上行业背景、品牌定位与已有规则，生成新的内容创作规则。要求：
 

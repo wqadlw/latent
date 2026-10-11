@@ -26,13 +26,13 @@
         <div class="content-card__main">
           <div class="content-card__header">
             <span class="content-card__title">{{ item.title || '未命名内容' }}</span>
-            <el-tag size="small" :type="reviewTagType(item.review_status)" effect="light">{{ reviewText(item.review_status) }}</el-tag>
+            <el-tag size="small" :type="reviewStatusType(item.review_status)" effect="light">{{ reviewStatusLabel(item.review_status) }}</el-tag>
           </div>
           <div class="content-card__excerpt">{{ (item.content || '').slice(0, 120) }}{{ (item.content || '').length > 120 ? '...' : '' }}</div>
           <div class="content-card__meta">
             <span><el-icon><Connection /></el-icon> {{ getPlatformName(item.platform_id) }}</span>
             <span><el-icon><User /></el-icon> {{ getAccountName(item.account_id) }}</span>
-            <span><el-icon><Clock /></el-icon> {{ formatTime(item.create_time) }}</span>
+            <span><el-icon><Clock /></el-icon> {{ formatDateTime(item.create_time) }}</span>
           </div>
         </div>
         <div class="content-card__actions">
@@ -51,9 +51,9 @@
       <div v-if="current" class="detail-content">
         <h3 class="detail-title">{{ current.title }}</h3>
         <div class="detail-meta">
-          <el-tag size="small" :type="reviewTagType(current.review_status)">{{ reviewText(current.review_status) }}</el-tag>
+          <el-tag size="small" :type="reviewStatusType(current.review_status)">{{ reviewStatusLabel(current.review_status) }}</el-tag>
           <span>{{ getPlatformName(current.platform_id) }}</span>
-          <span>{{ formatTime(current.create_time) }}</span>
+          <span>{{ formatDateTime(current.create_time) }}</span>
         </div>
         <div class="detail-body">{{ current.content }}</div>
       </div>
@@ -86,6 +86,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, View, Delete, Connection, User, Clock, Document } from '@element-plus/icons-vue'
 import { useAppStore } from '../../store/app'
 import { contentApi, platformApi, accountApi } from '../../api'
+import { formatDateTime } from '../../utils/format'
+import { reviewStatusLabel, reviewStatusType } from '../../constants/status'
+import { nameById } from '../../utils/lookup'
 import EmptyState from '../EmptyState.vue'
 import VirtualList from '../VirtualList.vue'
 
@@ -127,11 +130,8 @@ function setFilter(v) {
   loadList()
 }
 
-function reviewTagType(s) { return { pending: 'warning', pass: 'success', reject: 'danger' }[s] || 'info' }
-function reviewText(s) { return { pending: '待审核', pass: '已通过', reject: '已驳回' }[s] || s }
-function getPlatformName(id) { return platforms.value.find(p => p.id === id)?.name || '—' }
-function getAccountName(id) { return accounts.value.find(a => a.id === id)?.account_name || '—' }
-function formatTime(t) { return t ? t.slice(0, 16) : '—' }
+const getPlatformName = (id) => nameById(platforms.value, id)
+const getAccountName = (id) => nameById(accounts.value, id, 'account_name')
 
 function viewDetail(item) {
   current.value = item

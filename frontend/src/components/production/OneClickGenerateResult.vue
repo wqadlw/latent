@@ -42,3 +42,15 @@ const visible = computed({
   set: (v) => emit('update:modelValue', v),
 })
 </script>
+
+<style scoped>
+/* 同 VersionHistoryDialog：规则原本留在 Production.vue 的 scoped style 里，
+   组件拆出后即失效，本弹窗一直缺样式。D2 归还给宿主组件。 */
+.gen-alert { margin-bottom: 12px; }
+.gen-geo-preview { margin: 8px 0 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md); overflow: hidden; }
+.gen-geo-row { display: flex; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--border-light); }
+.gen-geo-row:last-child { border-bottom: none; }
+.gen-geo-k { flex: 0 0 72px; color: var(--text-tertiary); font-size: 13px; }
+.gen-geo-v { flex: 1; font-weight: 600; word-break: break-word; }
+.gen-hint { margin-top: 10px; font-size: 12px; color: var(--text-tertiary); line-height: 1.6; }
+</style>
