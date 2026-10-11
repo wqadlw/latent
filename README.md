@@ -1,8 +1,11 @@
-# AI Content Matrix
+# 显影 Latent
 
-> 面向品牌内容运营团队的 **AI 软文生产矩阵系统**：把「行业空间 → 平台/账号/人设 → 关键词 → 知识库 → 提示词 → 软文生产 → 多平台发布」串成一条可复用、可追溯的流水线。
+> 企业级 GEO 运营系统：让品牌从潜影到显影，在 AI 的答案里被看见、被引用。
+
+面向品牌内容运营团队的 **内容生产流水线 + AI 可见性闭环**：把「行业空间 → 平台/账号/人设 → 关键词 → 知识库 → 提示词 → 内容生产 → 质检闸门 → 多平台发布 → AI 收录监测 → 引用归因 → 选题回流」串成一条可复用、可追溯、可度量的链路。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-3.0.0-1C1917.svg)](UPGRADE-V3.md)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776ab.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
 [![Vue](https://img.shields.io/badge/Vue-3.5-42b883.svg)](https://vuejs.org/)
@@ -15,6 +18,7 @@
 - [核心特性](#核心特性)
 - [界面预览](#界面预览)
 - [技术栈](#技术栈)
+- [安全设计](#安全设计)
 - [快速开始](#快速开始)
 - [配置 LLM](#配置-llm)
 - [品牌配置](#品牌配置)
@@ -24,6 +28,7 @@
 - [项目结构](#项目结构)
 - [数据模型](#数据模型)
 - [测试](#测试)
+- [工程约定与验收](#工程约定与验收)
 - [打包为可执行文件](#打包为可执行文件)
 - [常见问题](#常见问题)
 - [贡献](#贡献)
@@ -39,7 +44,7 @@
 2. **不可控** — 直接把提示词丢给大模型，产出忽好忽坏，品牌信息要么漏掉、要么硬植入到过不了平台审核。
 3. **不可追溯** — 一篇文章从大纲到终稿改了哪几步、用了哪版提示词，事后完全说不清。
 
-本系统把这三件事收敛进一个**按行业隔离**的工作台：所有内容资产结构化沉淀，提示词用变量占位符与业务数据解耦，生产流程拆成 7 个可回填、可回看的步骤。
+本系统把这三件事收敛进一个**按行业隔离**的工作台：所有内容资产结构化沉淀，提示词用变量占位符与业务数据解耦，生产流程拆成 10 个可回填、可回看的步骤；批量生产走**有界并发队列**，失败自动退避重试并支持断点续跑。
 
 ---
 
@@ -63,17 +68,31 @@
 | 模块 | 能力 |
 | --- | --- |
 | **软文生产** | 10 步标准化流程（见下），每步可回填、可回看 |
+| **批量生产与执行队列** | 一次提交「多个选题 × 多个平台」，展开成 N 条运行并按**有界并发**排队执行；失败自动退避重试、新尝试从断点续跑、排队中可取消 |
+| **质检闸门** | claim 抽取 → 证据核对 → 三态决策（通过 / 待人工确认 / 驳回），把「AI 说得好听」挡在发布之前 |
 | **内容中心** | 成稿归档、版本管理与内容资产沉淀 |
-| **发布管理** | 发布任务与发布策略编排 |
+| **发布管理** | 发布任务与发布策略编排；平台合规策略按 `publish_mode` 播种 |
 | **浏览器工作室** | 浏览器自动化流水线：豆包 Web 对话创作 → 回传存档 → 搜狐号自动发布（无官方 API 时最稳的路径） |
-| **GEO 监控** | 追踪品牌在 AI 回答中的收录与提及情况 |
 | **自动化提示词** | 可复用的提示词编排单元 |
+
+### GEO 闭环
+
+| 模块 | 能力 |
+| --- | --- |
+| **GEO 定位画布** | 三环定位法（细分人群 × 特定问题 × 独特优势），自动标注尚未覆盖的意图缺口 |
+| **GEO 监控** | 追踪品牌在 AI 回答中的收录与提及情况 |
+| **AI 可见性看板** | 自动采集品牌在 AI 回答里的出现情况，6 项 KPI + 趋势曲线 + 信源偏好榜 |
+| **归因闭环** | 四阶段漏斗 + 内容旅程回溯 + 回流选题，把「被引用」反推回「下一篇写什么」 |
+| **爬虫与站点资产** | AI / 搜索引擎爬虫抓取行为分类统计，一键生成 `llms.txt` 与 `sitemap.xml` |
 
 ---
 
 ## 界面预览
 
 > 以下截图取自系统实际运行界面，数据为**通用示例**（虚构的美妆护肤品牌「润初」），与任何真实客户无关。
+>
+> 截图可复现：`backend/scripts/seed_demo.py` 往一个**独立的演示库**灌入这套虚构数据
+> （不碰开发库），再由 `frontend/scripts/shot-readme.mjs` 逐页截取。
 
 ### 工作台
 
@@ -105,17 +124,80 @@
 
 ![GEO 定位画布](docs/screenshots/05-geo-canvas.png)
 
+### 批量生产与执行队列
+
+一次提交多个选题，系统展开成 N 条运行并按并发上限排队；**调度状态与内容状态分开显示**，失败可单独重试或整批重试。
+
+![批量生产与执行队列](docs/screenshots/06-pipeline.png)
+
+### 浏览器工作室
+
+无官方 API 的平台也能发：豆包 Web 对话负责创作，搜狐号自动发布负责落地，每一步都留痕可回溯。
+
+![浏览器工作室](docs/screenshots/07-browser-studio.png)
+
+### AI 可见性看板
+
+品牌在 AI 回答里被提到了几次、被谁提到、信源是哪些站点 —— 6 项 KPI + 趋势曲线 + 信源偏好榜。
+
+![AI 可见性看板](docs/screenshots/08-geo-visibility.png)
+
+### 归因闭环
+
+从「曝光 → 提及 → 引用 → 转化」四阶段漏斗回溯到具体内容，再反推出下一篇该写什么。
+
+![归因闭环](docs/screenshots/09-geo-loop.png)
+
 ---
 
 ## 技术栈
 
 | 层 | 选型 |
 | --- | --- |
-| 后端 | FastAPI 0.115 · SQLAlchemy 2.0 · Pydantic 2.9 · Uvicorn |
+| 后端 | FastAPI 0.115 · SQLAlchemy 2.0 · Pydantic 2 · Uvicorn |
 | 数据库 | SQLite（单文件，零安装零服务） |
+| 数据迁移 | Alembic（版本化 schema 迁移） |
+| 鉴权 | 自实现 HS256 JWT + PBKDF2-HMAC-SHA256（零第三方依赖） |
+| 密钥保护 | Fernet 字段级加密（SQLAlchemy TypeDecorator 透明加解密） |
 | 前端 | Vue 3.5 · Vite 5 · Element Plus 2.8 · Pinia · Vue Router |
-| 浏览器自动化 | Playwright |
+| 前端类型 | TypeScript 5.9（**渐进式**：新文件写 `lang="ts"`，存量 `.js` 走 `allowJs` 不参与检查） |
+| 代码检查 | `ruff check`（Python，0 告警门禁）· `vue-tsc --noEmit`（类型检查） |
+| 前端验收 | Playwright 脚本（冒烟 / 截图 / **结构断言**）+ 自研设计令牌审计脚本 |
+| 浏览器自动化 | Playwright（可选依赖，未安装时优雅降级） |
 | 打包 | PyInstaller（后端）、Vite build（前端） |
+
+---
+
+## 安全设计
+
+v3 补齐了 v2 缺失的安全底座，这是本项目与「本地脚本拼凑」的分界线。
+
+### 鉴权
+
+- **除 `/api/auth/login` 与 `/api/meta` 外，所有接口都要求登录**。
+  守卫在 `main.py` 注册路由时统一挂载，新增路由若忘了加 `_PROTECTED_ROUTERS`
+  会被 `tests/test_auth_api.py` 的参数化用例拦下。
+- 令牌为 HS256 JWT，默认有效期 12 小时（`APP_TOKEN_TTL` 可调）。
+- 签名密钥自动生成并落盘 `backend/data/.secret_key`，也可用 `APP_SECRET_KEY` 指定。
+- 密码用 PBKDF2-HMAC-SHA256（26 万轮 + 16 字节随机盐），
+  并**兼容 v2 的无盐 SHA-256**：老用户首次登录成功后自动升级，无需改密。
+- 登录失败限流（同 IP 5 分钟内 10 次），且不区分「用户不存在」与「密码错误」以防账号枚举。
+- 系统强制保留至少一个启用的管理员，避免把自己锁死。
+
+### 密钥保护
+
+- `llm_config.api_key` 与 `platform_credential.cred_json` 在 SQLite 中**以密文存储**，
+  由 `EncryptedText` 在读写边界透明加解密，业务代码无感知。
+- 加密密钥存 `backend/data/.fernet_key`（0600），可用 `APP_FERNET_KEY` 覆盖。
+  ⚠️ 更换密钥会导致已加密数据无法解密，需重新录入密钥与凭据。
+- 启动时幂等迁移，把 v2 遗留的明文存量刷成密文。
+
+### 其他
+
+- CORS 默认只放行本地开发端口，不再通配。
+- 操作日志（登录、改密、用户增删改）落 `operation_log` 表，管理员可查询。
+- 权限模型：`admin`（全部）与 `editor`（按 `industry_perms` 限定行业）。
+
 
 ---
 
@@ -155,7 +237,10 @@ npm run dev                  # http://localhost:5173
 
 打开 `http://localhost:5173`，默认账号 **admin / admin123**。
 
-> ⚠️ 首次登录后请立即在「设置」中修改默认密码。
+> ⚠️ **首次登录后请立即修改默认密码**（顶栏用户菜单 → 修改密码）。
+>
+> 系统默认只监听 `127.0.0.1`。若改为 `0.0.0.0` 暴露到局域网，**务必先设置
+> `APP_SECRET_KEY` 并修改管理员密码** —— 否则同网段任何人都能读写全部数据。
 
 ### 首次使用
 
@@ -260,7 +345,7 @@ cp brand.config.json.example brand.config.json
 
 ## 提示词变量体系
 
-提示词模板中用 `{variable_name}` 引用业务数据，避免硬编码。系统提供 **64 个内置变量**（前端面板展示），渲染引擎支持 **74 个变量键**。
+提示词模板中用 `{variable_name}` 引用业务数据，避免硬编码。系统提供 **66 个内置变量**（前端面板展示），渲染引擎支持 **76 个变量键**。
 
 | 分组 | 变量示例 | 说明 |
 | --- | --- | --- |
@@ -286,29 +371,48 @@ cp brand.config.json.example brand.config.json
 .
 ├── backend/                    # FastAPI 后端
 │   ├── app/
-│   │   ├── main.py             # 应用入口、建表与迁移
+│   │   ├── main.py             # 应用入口：路由注册 + 鉴权挂载 + 启动编排
 │   │   ├── models.py           # SQLAlchemy 模型 + 平台预设
-│   │   ├── database.py         # SQLite 连接与会话
+│   │   ├── database.py         # SQLite 连接与会话（支持 APP_DB_PATH）
+│   │   ├── security.py         # 密码哈希（PBKDF2）+ 访问令牌（HS256 JWT）
+│   │   ├── deps.py             # 请求级鉴权依赖 + 操作日志
+│   │   ├── crypto.py           # 字段级加密（Fernet + TypeDecorator）
+│   │   ├── dbmigrate.py        # Alembic 编程式驱动（启动自动升级 schema）
+│   │   ├── datamigrate.py      # 数据级迁移（敏感字段加密、历史数据归一）
+│   │   ├── selfcheck.py        # 启动自检
+│   │   ├── version.py          # 版本号单一事实来源
 │   │   ├── constants.py        # 内置变量单一事实来源
 │   │   ├── brand_config.py     # 品牌配置单一事实来源（brand.config.json / 环境变量）
 │   │   ├── paths.py            # 源码/打包双模式路径解析
-│   │   ├── routers/            # 20 个路由模块，约 206 个端点
-│   │   └── services/           # 提示词渲染、编排、LLM、发布、合规检测等
-│   ├── tests/                  # pytest 测试
-│   ├── migrations/             # 一次性数据迁移脚本
+│   │   ├── routers/            # 27 个路由模块（含 auth），281 个端点
+│   │   └── services/           # 提示词渲染、编排内核、队列、批量、GEO 闭环、LLM、发布、合规
+│   │       ├── pipeline.py     # 声明式九步规格 + 断点续跑判定
+│   │       ├── task_queue.py   # 有界并发调度器 + pipeline_job
+│   │       ├── batch.py        # 批量生产：规格展开 + 去重预览
+│   │       ├── geo_loop.py     # 可见性归因闭环：四阶段漏斗 + 回流选题
+│   │       └── ...             # 质检闸门、可见性采集、发布策略、规则检查等
+│   ├── alembic/                # 数据库版本化迁移（baseline + 增量）
+│   ├── tests/                  # pytest 测试（402 项，自带临时库隔离）
+│   ├── scripts/                # 演示数据种子（seed_demo.py 等，非运行时依赖）
+│   ├── migrations/             # v2 时期的一次性数据迁移脚本（保留备查）
 │   ├── run.py                  # 启动入口（兼 PyInstaller 打包入口）
-│   └── requirements.txt
+│   ├── requirements.txt        # 核心依赖
+│   ├── requirements-optional.txt  # 可选依赖（Playwright）
+│   └── requirements-dev.txt    # 开发/测试依赖
 ├── frontend/                   # Vue 3 前端
 │   ├── src/
-│   │   ├── views/              # 22 个页面视图
-│   │   ├── components/         # 通用组件（内容 / 知识库 / 生产）
+│   │   ├── views/              # 25 个页面；大页面按「壳 + 面板 + 弹窗 + 共享样式」拆到子目录
+│   │   ├── components/         # 跨页面通用组件（layout / content / knowledge / production）
+│   │   ├── constants/          # 纯数据与标签映射（平台码、状态枚举、图标、生产步骤…）
+│   │   ├── composables/        # 可复用逻辑（变量检测、生产流程状态机…）
+│   │   ├── utils/              # 纯函数（剪贴板、Markdown、日期、下载、按 id 查找）
 │   │   ├── api/                # 接口封装
 │   │   ├── store/              # Pinia 状态
-│   │   ├── router/             # 路由与导航分组
-│   │   └── styles/
-│   ├── scripts/                # 冒烟与端到端验证脚本
+│   │   ├── router/             # 路由与导航分组（菜单由路由派生，单一来源）
+│   │   └── styles/             # 设计令牌与全局样式
+│   ├── scripts/                # 冒烟 / 截图 / 结构断言 / 设计令牌审计脚本
 │   └── tests/
-├── docs/                       # 设计与规范文档
+├── docs/                       # 设计与规范文档（含前端验收手册、工程约定手册）
 ├── brand.config.json.example   # 品牌配置模板（复制为 brand.config.json 使用）
 ├── start.sh / start.bat        # 一键启动
 ├── init_env.sh / init_env.bat  # 环境初始化
@@ -319,45 +423,107 @@ cp brand.config.json.example brand.config.json
 
 ## 数据模型
 
-核心表（SQLite）：
+核心表共 **38 张**（SQLite）：
 
-| 表 | 说明 |
-| --- | --- |
-| `industry` | 行业空间（顶层隔离实体） |
-| `platform` / `account` / `persona` | 平台、账号、人设 |
-| `keyword` / `keyword_group` | 关键词与关键词组 |
-| `knowledge_category` / `knowledge_item` | 知识库分类与知识点 |
-| `prompt_library_item` | AI 提示词库 |
-| `rule_library` | 三大规则库 |
-| `brand_asset` | 品牌资产 |
-| `target_persona` / `intent_question` | GEO 目标客户画像与意图问题 |
-| `production_task` / `content_asset` / `content_version` | 生产任务、内容资产与版本 |
-| `publish_job` / `publish_strategy` / `platform_credential` | 发布任务、策略与平台凭据 |
-| `browser_studio_run` / `browser_studio_step` | 浏览器工作室流水线与步骤状态机 |
-| `geo_monitor` / `geo_monitor_reply` | GEO 收录监控 |
-| `llm_config` / `llm_call_log` | LLM 配置与调用日志 |
-| `sys_user` | 系统用户 |
+| 分组 | 表 | 说明 |
+| --- | --- | --- |
+| 空间与账号 | `industry` | 行业空间（顶层隔离实体） |
+| | `platform` / `account` / `persona` | 平台、账号、人设 |
+| 内容资产 | `keyword_group` / `keyword` / `topic` | 关键词组、关键词、选题池 |
+| | `knowledge_category` / `knowledge_item` | 知识库分类与知识点 |
+| | `prompt_library_item` / `rule_library` / `automation_prompt` | 提示词库、三大规则库、自动化提示词 |
+| | `brand_asset` / `background_library` | 品牌资产、背景素材库 |
+| GEO 作战 | `target_persona` / `intent_question` | 目标客户画像与意图问题 |
+| 生产 | `production_task` / `content_asset` / `content_version` | 生产任务、内容资产与版本 |
+| | `pipeline_job` | 队列调度作业（与 `production_task.status` **分开**，避免批次进度算重） |
+| | `quality_check` | 质检闸门：claim 抽取与三态决策结果 |
+| 发布 | `publish_job` / `publish_strategy` / `platform_credential` | 发布任务、平台合规策略与平台凭据（凭据字段加密落库） |
+| | `effect_record` | 发布后的效果回流记录 |
+| 可见性 | `geo_monitor` / `geo_monitor_reply` | GEO 收录监控与 AI 回复明细 |
+| | `geo_visibility_run` / `geo_visibility_source` | 可见性采集批次与信源 |
+| | `geo_visibility_competitor` / `geo_visibility_competitor_detection` | 竞品配置与识别结果 |
+| | `crawler_hit` | AI / 搜索引擎爬虫抓取日志 |
+| 浏览器自动化 | `browser_studio_step` | 工作室步骤状态机（运行主体已并入 `production_task(mode='auto')`） |
+| | `browser_studio_run` | ⚠️ **P2 并表遗留表**，仅供读取未迁移的历史运行；代码统一走 `get_auto_run()` 解析 |
+| 系统 | `sys_user` / `operation_log` | 系统用户与操作日志 |
+| | `llm_config` / `llm_call_log` | LLM 配置（`api_key` 加密）与调用日志 |
 
-建表由 `backend/app/main.py` 的 `init_db()` 在启动时自动完成（`Base.metadata.create_all`），无需手动执行 SQL。
+Schema 由 **Alembic** 管理：`backend/app/main.py` 的 `init_db()` 在启动时依次执行
+`schema 迁移（upgrade_to_head）→ 数据迁移（run_data_migrations）→ 种子数据`，
+无需手动执行 SQL。**新增表结构一律走 `backend/alembic/versions/`，不要再往启动钩子里加 `PRAGMA` / `ALTER TABLE`。**
 
 ---
 
 ## 测试
 
+后端 **402 项** pytest 用例（22 个文件）：
+
 ```bash
 cd backend
 ./venv/Scripts/python.exe -m pytest tests/ -q     # Linux/macOS: ./venv/bin/python -m pytest
+./venv/Scripts/python.exe -m pytest tests/ --cov=app --cov-report=term-missing   # 带覆盖率
+```
+
+> 测试自带隔离：`tests/conftest.py` 在导入 `app` 之前把数据库指向临时目录
+> （并设 `APP_PIPELINE_WORKER=0` 关掉调度线程，避免后台线程与用例抢作业），
+> 因此跑测试**不会碰你的开发库** `backend/data/database.db`。
+
+重点测试文件：
+
+| 文件 | 覆盖内容 |
+| --- | --- |
+| `test_auth_api.py` | 未登录一律 401、令牌伪造拒绝、登录限流、用户 CRUD、最后一个管理员保护、**每个业务路由都已挂守卫** |
+| `test_security.py` | 密码加盐、历史 SHA-256 兼容、JWT 篡改与过期 |
+| `test_crypto.py` | 加密往返、明文兼容、**落库是密文 / ORM 读出来是明文** |
+| `test_pipeline_queue.py` | 断点续跑语义（只跳连续前缀、`done ≠ 产物可用`、`connect` 不阻塞）、有界并发、取消与重投 |
+| `test_quality_gate.py` / `test_claim_extractor.py` | 质检闸门三态决策与 claim 抽取 |
+| `test_visibility.py` / `test_visibility_analytics.py` | 可见性采集与 6 项 KPI 计算 |
+| `test_geo_loop.py` | 归因闭环四阶段漏斗与回流选题 |
+| `test_account_api.py` | 含「外键列不得有标量默认值」的遍历式护栏（拦住一类必然 500 的缺陷） |
+
+代码检查：
+
+```bash
+pip install ruff
+ruff check .          # 在仓库根目录执行，必须 0 告警
 ```
 
 前端验证脚本：
 
 ```bash
 cd frontend
-npm run smoke             # 冒烟
+npm run smoke             # 冒烟（**会先登录**，否则路由守卫会把每条路由重定向到登录页）
+npm run typecheck         # vue-tsc 类型检查
+npm run audit:tokens      # 设计令牌审计：未定义且无 fallback 的 var(--x) 必须为 0
 npm run test:backend      # 后端接口连通性
 npm run test:frontend     # 组件测试
 npm run build:check       # 后端测试 + 构建 + 冒烟 全链路
 ```
+
+截图与结构断言脚本（`frontend/scripts/shot-*.mjs`）不只截图，还断言「详情面板真的渲染了内容」
+（非空详情容器数、流水线步骤数、模式徽标的计算样式等）—— 组件拆出去后若 prop 没传进来，
+页面会**静默**显示空状态，那也是一张「正常」的截图。**新增任何检查项，都先用一个故意的错误证明它会红。**
+
+---
+
+## 工程约定与验收
+
+这个项目把「踩过的坑」沉淀成了可执行的护栏，而不是写在文档里靠自觉。两份手册是改代码前该先读的东西：
+
+| 文档 | 内容 |
+| --- | --- |
+| [`docs/工程约定手册.md`](docs/工程约定手册.md) | 鉴权挂载点、加密字段、Alembic 迁移、外键默认值、版本号单一来源、流水线语义等**硬约定**及违反后的后果 |
+| [`docs/前端验收手册.md`](docs/前端验收手册.md) | 冒烟 / 截图 / 结构断言 / 计算样式 / 令牌审计的做法与陷阱（滚动容器、弹窗计数、CRLF、假绿…） |
+| [`docs/提示词编写规范与优化清单.md`](docs/提示词编写规范与优化清单.md) | 四段式结构、变量覆盖清单与常见反模式 |
+
+几条贯穿全仓的原则：
+
+- **单一事实来源**：版本号只在 `app/version.py`；内置变量只在 `app/constants.py`；菜单只在路由表；
+  平台码与状态标签只在前端 `constants/`。任何「第二份」都是缺陷。
+- **schema 变更必须走 Alembic**，存量数据刷写放在幂等的 `app/datamigrate.py`。
+- **护栏必须有牙齿**：每条断言都先用一个故意的错误验证过它会失败。绿而无检查能力的测试
+  比红灯更危险 —— 本项目在这一点上吃过亏，所以现在新加检查项前先证明它会红。
+- **样式只能靠计算样式验**：非 scoped 的共享样式表漏掉 import 时，页面结构与所有结构断言照样全绿。
 
 ---
 
